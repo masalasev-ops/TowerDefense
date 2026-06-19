@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tower Defense — Nuke Command</title>
+    <link rel="stylesheet" href="css/style.css?v=7">
+</head>
+<body>
+    <div id="game-container">
+        <!-- HUD Bar -->
+        <div id="hud">
+            <div class="hud-item">
+                <span class="hud-label">💰 Gold</span>
+                <span id="gold-value" class="hud-value">200</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">🏰 Castle</span>
+                <span id="castle-hp-value" class="hud-value">2000</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">🌊 Wave</span>
+                <span id="wave-value" class="hud-value">0</span>
+            </div>
+            <div class="hud-item">
+                <button id="repair-btn" class="repair-btn" style="display:none;" onclick="window._repairCastle()">🔧 Repair</button>
+                <span id="repair-info" class="repair-info" style="display:none;"></span>
+            </div>
+            <div class="hud-item hud-spacer">
+                <button id="wave-btn" class="wave-start-btn">Start Wave 1</button>
+            </div>
+            <div class="hud-item">
+                <div class="speed-controls">
+                    <button id="speed-1x" class="speed-btn active" data-speed="1">1×</button>
+                    <button id="speed-2x" class="speed-btn" data-speed="2">2×</button>
+                    <button id="speed-3x" class="speed-btn" data-speed="3">3×</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <div id="canvas-wrapper">
+            <canvas id="game-canvas"></canvas>
+            <!-- Tower Info Panel (shown when a placed tower is selected) -->
+            <div id="tower-info" style="display:none;"></div>
+        </div>
+
+        <!-- Tower Selection -->
+        <div id="tower-panel">
+            <div id="tower-buttons"></div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="game-over-overlay" style="display:none;">
+            <div id="game-over-box">
+                <h1 id="game-over-title">GAME OVER</h1>
+                <p id="game-over-stats"></p>
+                <button id="restart-btn" class="restart-btn">🔄 Play Again</button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div id="instructions">
+            <span>Click grid → place tower | Click tower → upgrade/sell | Space → start wave | 1/2/3 → speed | Esc → deselect</span>
+        </div>
+    </div>
+
+    <!-- Scripts (load order matters) — v2 cache bust -->
+    <script src="js/constants.js?v=7"></script>
+    <script src="js/map.js?v=7"></script>
+    <script src="js/enemy.js?v=7"></script>
+    <script src="js/tower.js?v=7"></script>
+    <script src="js/projectile.js?v=7"></script>
+    <script src="js/effects.js?v=7"></script>
+    <script src="js/wave.js?v=7"></script>
+    <script src="js/input.js?v=7"></script>
+    <script src="js/ui.js?v=7"></script>
+    <script src="js/main.js?v=7"></script>
+</body>
+</html>
