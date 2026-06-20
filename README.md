@@ -2,9 +2,17 @@
 
 A browser-based tower defense game built with vanilla JavaScript and HTML5 Canvas. Defend your castle across 8 unique maps, unlock new terrain by conquering previous ones, and survive escalating waves of enemies.
 
-## How to Play
+## Quick Start
 
-Open `index.html` in any modern browser — no build step, no dependencies.
+1. **Clone or download** this repository
+2. **Open `index.html`** in any modern browser (Chrome, Firefox, Edge, Safari) — no build step, no dependencies, no `npm install`
+3. **Choose a map** from the setup screen (🌳 Crossroads is the first; beat it to unlock more)
+4. **Pick a difficulty** (🟢 Easy / 🟡 Normal / 🔴 Hard)
+5. **Click "Start Game"** — you're defending your castle!
+
+> 💡 Want to play on your phone? The PWA manifest makes it installable from the browser. See [Publishing to Android](#publishing-to-android).
+
+## How to Play
 
 | Action | How |
 |---|---|
