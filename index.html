@@ -3,11 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Tower Defense — Nuke Command</title>
-    <link rel="stylesheet" href="css/style.css?v=7">
+    <meta name="theme-color" content="#0a0e1a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tower Defense — Siege Command</title>
+    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
     <div id="game-container">
+        <!-- Game Setup Screen -->
+        <div id="game-setup-screen">
+            <div id="setup-box">
+                <h1>🏰 Tower Defense</h1>
+                <p class="setup-subtitle">Defend your castle against waves of enemies!</p>
+
+                <!-- Map Selection -->
+                <div class="setup-section">
+                    <h2>Select Map</h2>
+                    <div id="map-selection">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Difficulty Selection -->
+                <div class="setup-section">
+                    <h2>Select Difficulty</h2>
+                    <div id="difficulty-selection">
+                        <button class="diff-btn" data-difficulty="easy">
+                            <span class="diff-icon">🟢</span>
+                            <span class="diff-name">Easy</span>
+                            <span class="diff-desc">Relaxed pace, more gold, castle heals</span>
+                        </button>
+                        <button class="diff-btn selected" data-difficulty="normal">
+                            <span class="diff-icon">🟡</span>
+                            <span class="diff-name">Normal</span>
+                            <span class="diff-desc">Standard challenge</span>
+                        </button>
+                        <button class="diff-btn" data-difficulty="hard">
+                            <span class="diff-icon">🔴</span>
+                            <span class="diff-name">Hard</span>
+                            <span class="diff-desc">Tougher enemies, less gold, early threats</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <button id="start-game-btn">⚔️ Start Game</button>
+            </div>
+        </div>
+
         <!-- HUD Bar -->
         <div id="hud">
             <div class="hud-item">
@@ -55,7 +101,10 @@
             <div id="game-over-box">
                 <h1 id="game-over-title">GAME OVER</h1>
                 <p id="game-over-stats"></p>
-                <button id="restart-btn" class="restart-btn">🔄 Play Again</button>
+                <div class="game-over-buttons">
+                    <button id="restart-btn" class="restart-btn">🔄 Play Again</button>
+                    <button id="main-menu-btn" class="menu-btn">🏠 Main Menu</button>
+                </div>
             </div>
         </div>
 
@@ -65,16 +114,32 @@
         </div>
     </div>
 
-    <!-- Scripts (load order matters) — v2 cache bust -->
-    <script src="js/constants.js?v=7"></script>
-    <script src="js/map.js?v=7"></script>
-    <script src="js/enemy.js?v=7"></script>
-    <script src="js/tower.js?v=7"></script>
-    <script src="js/projectile.js?v=7"></script>
-    <script src="js/effects.js?v=7"></script>
-    <script src="js/wave.js?v=7"></script>
-    <script src="js/input.js?v=7"></script>
-    <script src="js/ui.js?v=7"></script>
-    <script src="js/main.js?v=7"></script>
+    <!-- Scripts (load order matters) — v9 -->
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js?v=9');
+        }
+    </script>
+    <script src="js/constants.js?v=9"></script>
+    <script src="js/sprites.js?v=9"></script>
+    <script src="js/sound.js?v=9"></script>
+    <script src="js/map.js?v=9"></script>
+    <script src="js/maps/crossroads.js?v=9"></script>
+    <script src="js/maps/winding_valley.js?v=9"></script>
+    <script src="js/maps/frozen_pass.js?v=9"></script>
+    <script src="js/maps/fortress_siege.js?v=9"></script>
+    <script src="js/maps/desert_oasis.js?v=9"></script>
+    <script src="js/maps/jungle_ruins.js?v=9"></script>
+    <script src="js/maps/volcanic_caldera.js?v=9"></script>
+    <script src="js/maps/coastal_cliffs.js?v=9"></script>
+    <script src="js/enemy.js?v=9"></script>
+    <script src="js/tower.js?v=9"></script>
+    <script src="js/projectile.js?v=9"></script>
+    <script src="js/effects.js?v=9"></script>
+    <script src="js/wave.js?v=9"></script>
+    <script src="js/input.js?v=9"></script>
+    <script src="js/ui.js?v=9"></script>
+    <script src="js/main.js?v=9"></script>
 </body>
 </html>

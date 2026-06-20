@@ -14,6 +14,11 @@ const CELL_BUILDABLE = 0;
 const CELL_PATH = 1;
 const CELL_BLOCKED = 2;
 
+// Decoration types (used by sprites and maps)
+const BLOCKED_TREE = 1;
+const BLOCKED_ROCK = 2;
+const BLOCKED_HOUSE = 3;
+
 // --- Starting Resources ---
 const STARTING_GOLD = 280;
 const CASTLE_MAX_HP = 2000;
@@ -181,7 +186,66 @@ const ENEMY_DEFS = {
         gold: 150,
         color: '#D32F2F',
         size: 24
-    }
+    },
+    healer: {
+        name: 'Healer',
+        hp: 100,
+        speed: 40,
+        armor: 0.05,
+        flyer: false,
+        gold: 22,
+        color: '#4CAF50',
+        size: 13,
+        healRadius: 70,
+        healAmount: 6,
+        healInterval: 1.5,
+    },
+    splitter: {
+        name: 'Splitter',
+        hp: 140,
+        speed: 35,
+        armor: 0.10,
+        flyer: false,
+        gold: 28,
+        color: '#FF5722',
+        size: 14,
+        splitCount: 3,
+        splitChildType: 'splitter_minion',
+    },
+    splitter_minion: {
+        name: 'Fragment',
+        hp: 50,
+        speed: 50,
+        armor: 0,
+        flyer: false,
+        gold: 5,
+        color: '#FF8A65',
+        size: 9,
+    },
+    shielded: {
+        name: 'Shielded',
+        hp: 200,
+        speed: 30,
+        armor: 0.20,
+        flyer: false,
+        gold: 35,
+        color: '#2196F3',
+        size: 16,
+        shieldHits: 5,
+        shieldDmgReduction: 0.80,
+    },
+    phantom: {
+        name: 'Phantom',
+        hp: 150,
+        speed: 85,
+        armor: 0,
+        flyer: false,
+        gold: 30,
+        color: '#9C27B0',
+        size: 12,
+        phaseInterval: 4.0,
+        phaseDuration: 1.5,
+    },
 };
 
 // --- Wave Configuration ---
@@ -204,41 +268,124 @@ const WAVE_COMPOSITIONS = [
 ];
 
 // Generate wave compositions beyond the predefined ones
-function getWaveComposition(waveNum) {
-    if (waveNum <= WAVE_COMPOSITIONS.length) {
+function getWaveComposition(waveNum, difficulty) {
+    if (waveNum <= WAVE_COMPOSITIONS.length && (!difficulty || difficulty === 'normal')) {
         return WAVE_COMPOSITIONS[waveNum - 1];
     }
 
-    // Procedural generation for waves beyond 10
+    // Get difficulty offset for when advanced enemies appear
+    const diff = (difficulty && DIFFICULTY_DEFS[difficulty])
+        ? DIFFICULTY_DEFS[difficulty] : { advancedEnemyWaveOffset: 0 };
+    const offset = diff.advancedEnemyWaveOffset || 0;
+
+    // Procedural generation
     const comp = [];
     const baseCount = 3 + Math.floor(waveNum * 1.3);
 
     // Grunts always present
-    comp.push({ type: 'grunt', count: Math.floor(baseCount * 0.5) });
+    comp.push({ type: 'grunt', count: Math.floor(baseCount * 0.4) });
 
-    // Runners from wave 3+
-    if (waveNum >= 3) comp.push({ type: 'runner', count: Math.floor(baseCount * 0.3) });
+    // Runners from wave 3+ (shifted by offset)
+    if (waveNum >= Math.max(1, 3 + offset)) {
+        comp.push({ type: 'runner', count: Math.floor(baseCount * 0.25) });
+    }
 
-    // Tanks from wave 5+
-    if (waveNum >= 5) comp.push({ type: 'tank', count: Math.floor(baseCount * 0.15) });
+    // Tanks from wave 5+ (shifted)
+    if (waveNum >= Math.max(1, 5 + offset)) {
+        comp.push({ type: 'tank', count: Math.floor(baseCount * 0.12) });
+    }
 
-    // Flyers from wave 8+
-    if (waveNum >= 8) comp.push({ type: 'flyer', count: Math.floor(baseCount * 0.2) });
+    // Flyers from wave 8+ (shifted)
+    if (waveNum >= Math.max(1, 8 + offset)) {
+        comp.push({ type: 'flyer', count: Math.floor(baseCount * 0.15) });
+    }
+
+    // Healers from wave 8+ (shifted)
+    if (waveNum >= Math.max(1, 8 + offset)) {
+        comp.push({ type: 'healer', count: Math.max(1, Math.floor(baseCount * 0.08)) });
+    }
+
+    // Shielded from wave 11+ (shifted)
+    if (waveNum >= Math.max(1, 11 + offset)) {
+        comp.push({ type: 'shielded', count: Math.max(1, Math.floor(baseCount * 0.08)) });
+    }
+
+    // Splitters from wave 13+ (shifted)
+    if (waveNum >= Math.max(1, 13 + offset)) {
+        comp.push({ type: 'splitter', count: Math.max(1, Math.floor(baseCount * 0.06)) });
+    }
+
+    // Phantoms from wave 15+ (shifted)
+    if (waveNum >= Math.max(1, 15 + offset)) {
+        comp.push({ type: 'phantom', count: Math.max(1, Math.floor(baseCount * 0.06)) });
+    }
 
     // Boss every 10th wave
-    if (waveNum % 10 === 0) comp.push({ type: 'boss', count: 1 });
+    if (waveNum % BOSS_WAVE_INTERVAL === 0) comp.push({ type: 'boss', count: 1 });
 
     return comp;
 }
 
 // --- Wave Difficulty Scaling ---
-const DIFFICULTY_HP_SCALE = 0.10;    // +10% HP per wave
-const DIFFICULTY_SPEED_SCALE = 0.02; // +2% speed per wave
-const ELITE_WAVE_INTERVAL = 5;       // Every 5 waves = elite
-const ELITE_HP_MULT = 1.4;
+const DIFFICULTY_HP_SCALE = 0.10;    // +10% HP per wave (base scaling)
+const DIFFICULTY_SPEED_SCALE = 0.02; // +2% speed per wave (base scaling)
+const ELITE_WAVE_INTERVAL = 5;       // Default: every 5 waves = elite
+const ELITE_HP_MULT = 1.4;           // Default elite multipliers
 const ELITE_SPEED_MULT = 1.2;
 const BOSS_WAVE_INTERVAL = 10;
 const WAVE_BONUS_GOLD = 60;          // Base gold bonus for completing a wave
+
+// --- Difficulty Modes ---
+// Each difficulty overrides key gameplay parameters
+const DIFFICULTY_DEFS = {
+    easy: {
+        name: 'Easy',
+        description: 'Relaxed pace with more starting gold',
+        hpMult: 0.65,
+        speedMult: 0.75,
+        startingGold: 400,
+        waveBonusGoldMult: 1.40,
+        eliteInterval: 7,
+        eliteHpMult: 1.20,
+        eliteSpeedMult: 1.10,
+        spawnInterval: 0.9,
+        waveDelay: 3.0,
+        advancedEnemyWaveOffset: 4,   // New enemies appear this many waves later
+        healCastlePerWave: 60,        // Castle auto-heals between waves
+    },
+    normal: {
+        name: 'Normal',
+        description: 'Standard challenge',
+        hpMult: 1.00,
+        speedMult: 1.00,
+        startingGold: 280,
+        waveBonusGoldMult: 1.00,
+        eliteInterval: 5,
+        eliteHpMult: 1.40,
+        eliteSpeedMult: 1.20,
+        spawnInterval: 0.7,
+        waveDelay: 2.0,
+        advancedEnemyWaveOffset: 0,
+        healCastlePerWave: 0,
+    },
+    hard: {
+        name: 'Hard',
+        description: 'Tougher enemies, less gold, early threats',
+        hpMult: 1.60,
+        speedMult: 1.25,
+        startingGold: 180,
+        waveBonusGoldMult: 0.65,
+        eliteInterval: 4,
+        eliteHpMult: 1.70,
+        eliteSpeedMult: 1.40,
+        spawnInterval: 0.45,
+        waveDelay: 1.3,
+        advancedEnemyWaveOffset: -2,  // New enemies appear 2 waves earlier
+        healCastlePerWave: 0,
+    },
+};
+
+let CURRENT_DIFFICULTY = 'normal';
 
 // --- Spawn Timing ---
 const SPAWN_INTERVAL = 0.7;   // Seconds between enemy spawns

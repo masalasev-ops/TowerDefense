@@ -125,6 +125,7 @@ class Tower {
             if (this.typeKey === 'nuke') {
                 this.nukeCharge = 0;
             }
+            if (typeof SoundManager !== 'undefined') SoundManager.towerShoot(this.typeKey);
             return {
                 tower: this,
                 target: this.target,

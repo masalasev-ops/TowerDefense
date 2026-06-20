@@ -266,6 +266,101 @@ class UIManager {
         if (overlay) overlay.style.display = 'none';
     }
 
+    // --- Setup Screen ---
+    showGameSetup(onStart) {
+        this._onStart = onStart;
+        this._selectedMap = 'crossroads';
+        this._selectedDifficulty = 'normal';
+
+        const screen = document.getElementById('game-setup-screen');
+        if (!screen) return;
+
+        // Populate map cards with unlock progression
+        const mapContainer = document.getElementById('map-selection');
+        if (mapContainer && typeof MAP_DEFS !== 'undefined') {
+            mapContainer.innerHTML = '';
+            const mapIcons = {
+                'crossroads': '🌳',
+                'winding_valley': '🏞️',
+                'frozen_pass': '❄️',
+                'fortress_siege': '🏯',
+                'desert_oasis': '🌵',
+                'jungle_ruins': '🌴',
+                'volcanic_caldera': '🌙',
+                'coastal_cliffs': '🏖️',
+            };
+            // Get beaten maps from localStorage
+            let beatenMaps = {};
+            try { beatenMaps = JSON.parse(localStorage.getItem('td_beaten_maps') || '{}'); } catch(e) {}
+            // Crossroads always unlocked
+            beatenMaps['crossroads'] = true;
+
+            for (const [key, mapDef] of Object.entries(MAP_DEFS)) {
+                const req = mapDef.unlockRequirement;
+                const unlocked = !req || beatenMaps[req];
+
+                const card = document.createElement('div');
+                card.className = 'map-card';
+                if (!unlocked) card.classList.add('locked');
+                if (key === this._selectedMap && unlocked) card.classList.add('selected');
+                card.dataset.mapId = key;
+
+                if (unlocked) {
+                    card.innerHTML = `
+                        <div class="map-icon">${mapIcons[key] || '🗺️'}</div>
+                        <div class="map-name">${mapDef.name}</div>
+                        <div class="map-desc">${mapDef.description}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        mapContainer.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this._selectedMap = key;
+                    });
+                } else {
+                    const reqName = MAP_DEFS[req] ? MAP_DEFS[req].name : req;
+                    card.innerHTML = `
+                        <div class="map-icon">🔒</div>
+                        <div class="map-name">${mapDef.name}</div>
+                        <div class="map-desc">Beat ${reqName} to unlock</div>
+                    `;
+                    card.title = 'Locked — complete ' + reqName + ' first';
+                }
+                mapContainer.appendChild(card);
+            }
+        }
+
+        // Bind difficulty buttons
+        const diffContainer = document.getElementById('difficulty-selection');
+        if (diffContainer) {
+            diffContainer.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.difficulty === this._selectedDifficulty);
+                btn.onclick = () => {
+                    diffContainer.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    this._selectedDifficulty = btn.dataset.difficulty;
+                };
+            });
+        }
+
+        // Bind start button
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn) {
+            startBtn.onclick = () => {
+                this.hideGameSetup();
+                if (this._onStart) {
+                    this._onStart(this._selectedMap, this._selectedDifficulty);
+                }
+            };
+        }
+
+        screen.style.display = 'flex';
+    }
+
+    hideGameSetup() {
+        const screen = document.getElementById('game-setup-screen');
+        if (screen) screen.style.display = 'none';
+    }
+
     renderHoverPreview(ctx, cell, canPlace, towerType) {
         if (!cell) return;
 
