@@ -1,0 +1,15 @@
+{
+  "name": "tower-defense-siege-command",
+  "version": "2.1.0",
+  "description": "Browser-based tower defense game built with vanilla JavaScript and HTML5 Canvas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  }
+}

@@ -77,20 +77,18 @@ MAP_DEFS.coastal_cliffs = {
             for (let col = 0; col < GRID_COLS; col++) {
                 const x = col*CELL_SIZE, y = row*CELL_SIZE, type = GRID_DATA[row][col], cx = x+CELL_SIZE/2, cy = y+CELL_SIZE/2;
                 const isBeach = x+CELL_SIZE > GAME_WIDTH*0.55;
-                if (type === CELL_PATH) {
-                    SpriteAtlas.drawTile(ctx, 'path', row+col, x, y);
-                } else if (isBeach) {
+                if (isBeach) {
                     SpriteAtlas.drawTile(ctx, 'sand_beach', row+col, x, y);
                 } else if (type === CELL_BLOCKED) {
-                    SpriteAtlas.drawTile(ctx, 'coastal', row+col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'coastal_3d', row+col, x, y);
                     const dt = DECO_MAP[row+','+col] || BLOCKED_TREE;
                     SpriteAtlas.drawDeco(ctx, dt, row*100+col, cx, cy+2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'coastal', row+col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'coastal_3d', row+col, x, y);
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.05)'; ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        renderSmoothPath(ctx, 'coastal', 12);
         // Seagulls
         for(let i=0;i<6;i++){
             const sx=GAME_WIDTH*0.6+seededRand(i*13)*GAME_WIDTH*0.35;

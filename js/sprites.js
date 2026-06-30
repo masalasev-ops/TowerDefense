@@ -25,37 +25,43 @@ const SpriteAtlas = (function() {
         return x - Math.floor(x);
     }
 
-    // Draw a more detailed tree to a canvas
+    // Draw a more detailed tree to a canvas (enhanced with directional lighting)
     function renderTreeSprite(seed) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const cx = SPRITE_SIZE / 2, cy = SPRITE_SIZE / 2;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        // Directional shadow (consistent top-left light = shadow bottom-right)
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
         ctx.beginPath();
-        ctx.ellipse(cx + 3, cy + 13, 12, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 4, cy + 13, 13, 4.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Trunk with bark texture
-        const trunkGrad = ctx.createLinearGradient(cx - 3, 0, cx + 3, 0);
-        trunkGrad.addColorStop(0, '#5D4037');
+        // Trunk with directional gradient (light from left)
+        const trunkGrad = ctx.createLinearGradient(cx - 4, 0, cx + 4, 0);
+        trunkGrad.addColorStop(0, '#6D4C41');  // lit side
         trunkGrad.addColorStop(0.3, '#795548');
-        trunkGrad.addColorStop(0.7, '#6D4C41');
-        trunkGrad.addColorStop(1, '#4E342E');
+        trunkGrad.addColorStop(0.6, '#5D4037');
+        trunkGrad.addColorStop(1, '#3E2723');  // shadow side
         ctx.fillStyle = trunkGrad;
-        ctx.fillRect(cx - 3, cy - 4, 6, 12);
-        // Bark lines
+        ctx.fillRect(cx - 3, cy - 4, 6, 13);
+        // Bark texture lines
         ctx.strokeStyle = '#3E2723';
         ctx.lineWidth = 0.5;
-        for (let ly = cy - 2; ly < cy + 8; ly += 3) {
+        for (let ly = cy - 2; ly < cy + 9; ly += 3) {
             ctx.beginPath();
             ctx.moveTo(cx - 2, ly);
             ctx.lineTo(cx + 2, ly + seeded(seed + ly) * 1.5);
             ctx.stroke();
         }
 
-        // Canopy layers with gradient
+        // Dark underside canopy layer (creates depth shadow)
+        ctx.fillStyle = '#1B5E20';
+        ctx.beginPath();
+        ctx.arc(cx + 2, cy - 7, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Canopy layers with light-offset radial gradients
         const canopyColors = [
             { fill: '#1B5E20', highlight: '#2E7D32' },
             { fill: '#2E7D32', highlight: '#388E3C' },
@@ -64,45 +70,55 @@ const SpriteAtlas = (function() {
         ];
         for (let layer = 0; layer < 4; layer++) {
             const ly = cy - 10 - layer * 4;
-            const lr = 12 - layer * 1.8;
+            const lr = 13 - layer * 2;
             const lx = cx + (seeded(seed + layer * 13) - 0.5) * 4;
 
-            const grad = ctx.createRadialGradient(lx - 2, ly - 2, lr * 0.2, lx, ly, lr);
+            // Offset gradient center toward light (top-left)
+            const grad = ctx.createRadialGradient(lx - lr * 0.35, ly - lr * 0.35, lr * 0.1, lx, ly, lr);
             grad.addColorStop(0, canopyColors[layer].highlight);
-            grad.addColorStop(1, canopyColors[layer].fill);
+            grad.addColorStop(0.6, canopyColors[layer].fill);
+            grad.addColorStop(1, darkenColor(canopyColors[layer].fill, 0.2));
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(lx, ly, lr, 0, Math.PI * 2);
             ctx.fill();
 
-            // Dappled highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            // Brighter highlight on upper-left edge
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
             ctx.beginPath();
-            ctx.arc(lx - lr * 0.3, ly - lr * 0.3, lr * 0.5, 0, Math.PI * 2);
+            ctx.arc(lx - lr * 0.3, ly - lr * 0.35, lr * 0.4, 0, Math.PI * 2);
             ctx.fill();
         }
+
+        // Fine outline on canopy edge for definition
+        ctx.strokeStyle = 'rgba(0,20,0,0.15)';
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 13, 14, 0, Math.PI * 2);
+        ctx.stroke();
 
         return c;
     }
 
-    // Rock sprite
+    // Rock sprite (enhanced with multi-facet directional shading)
     function renderRockSprite(seed) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const cx = SPRITE_SIZE / 2, cy = SPRITE_SIZE / 2 + 4;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        // Directional shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath();
-        ctx.ellipse(cx + 3, cy + 10, 12, 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 4, cy + 10, 13, 3.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Rock body with gradient
-        const grad = ctx.createLinearGradient(cx - 8, cy - 6, cx + 8, cy + 6);
-        grad.addColorStop(0, '#BDBDBD');
-        grad.addColorStop(0.4, '#9E9E9E');
-        grad.addColorStop(0.7, '#757575');
-        grad.addColorStop(1, '#616161');
+        // Rock body with light-directional gradient (top-left lit, bottom-right dark)
+        const grad = ctx.createLinearGradient(cx - 10, cy - 8, cx + 10, cy + 8);
+        grad.addColorStop(0, '#C7C7C7');   // lit
+        grad.addColorStop(0.3, '#B0B0B0');
+        grad.addColorStop(0.6, '#8A8A8A');
+        grad.addColorStop(0.85, '#666666');
+        grad.addColorStop(1, '#505050');   // shadow
         ctx.fillStyle = grad;
         ctx.beginPath();
         const numPoints = 8;
@@ -120,13 +136,32 @@ const SpriteAtlas = (function() {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Highlight facet
-        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        // Multi-facet shading: light facets on top-left
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
         ctx.beginPath();
-        ctx.arc(cx - 3, cy - 4, 5, 0, Math.PI * 2);
+        ctx.arc(cx - 3, cy - 5, 5.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Crack
+        // Second highlight facet
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.beginPath();
+        ctx.arc(cx - 5, cy - 1, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dark shadow facet on bottom-right
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath();
+        ctx.arc(cx + 4, cy + 4, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Light rim crescent on upper-left edge
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx - 1, cy - 3, 9.5, -Math.PI * 0.8, -Math.PI * 0.15);
+        ctx.stroke();
+
+        // Cracks
         ctx.strokeStyle = '#424242';
         ctx.lineWidth = 0.8;
         ctx.beginPath();
@@ -138,23 +173,32 @@ const SpriteAtlas = (function() {
         return c;
     }
 
-    // House sprite
+    // House sprite (enhanced with 3D extrusion and window glow)
     function renderHouseSprite() {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const cx = SPRITE_SIZE / 2, cy = SPRITE_SIZE / 2 + 2;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        // Directional shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.beginPath();
-        ctx.ellipse(cx + 3, cy + 12, 13, 3.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 4, cy + 13, 14, 4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Walls with wood texture
-        const wallGrad = ctx.createLinearGradient(0, cy - 4, 0, cy + 10);
-        wallGrad.addColorStop(0, '#EFEBE0');
-        wallGrad.addColorStop(0.5, '#E8D5B7');
-        wallGrad.addColorStop(1, '#D7C4A1');
+        // Walls — side faces for 3D extrusion
+        // Right wall shadow (dark edge)
+        ctx.fillStyle = '#B8A88C';
+        ctx.fillRect(cx + 8, cy - 2, 3, 14);
+        // Bottom wall shadow
+        ctx.fillStyle = '#C4B498';
+        ctx.fillRect(cx - 10, cy + 8, 20, 3);
+
+        // Main wall with directional gradient (light from left)
+        const wallGrad = ctx.createLinearGradient(cx - 10, 0, cx + 10, 0);
+        wallGrad.addColorStop(0, '#F2EDE0');  // lit
+        wallGrad.addColorStop(0.3, '#E8D5B7');
+        wallGrad.addColorStop(0.7, '#D7C4A1');
+        wallGrad.addColorStop(1, '#C4B08A');  // shadow side
         ctx.fillStyle = wallGrad;
         ctx.fillRect(cx - 10, cy - 2, 20, 14);
 
@@ -167,14 +211,20 @@ const SpriteAtlas = (function() {
         ctx.beginPath(); ctx.moveTo(cx - 5, cy - 2); ctx.lineTo(cx - 5, cy + 4); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx + 5, cy - 2); ctx.lineTo(cx + 5, cy + 4); ctx.stroke();
 
-        // Roof
-        const roofGrad = ctx.createLinearGradient(cx, cy - 16, cx, cy - 2);
-        roofGrad.addColorStop(0, '#C62828');
-        roofGrad.addColorStop(1, '#8E0000');
+        // Roof overhang shadow on wall
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(cx - 13, cy - 2, 26, 3);
+
+        // Roof with directional gradient
+        const roofGrad = ctx.createLinearGradient(cx - 13, cy - 16, cx + 13, cy - 2);
+        roofGrad.addColorStop(0, '#D32F2F');  // lit side
+        roofGrad.addColorStop(0.4, '#C62828');
+        roofGrad.addColorStop(0.8, '#8E0000');
+        roofGrad.addColorStop(1, '#6D0000');  // dark edge
         ctx.fillStyle = roofGrad;
         ctx.beginPath();
         ctx.moveTo(cx - 13, cy - 2);
-        ctx.lineTo(cx, cy - 16);
+        ctx.lineTo(cx, cy - 18);
         ctx.lineTo(cx + 13, cy - 2);
         ctx.closePath();
         ctx.fill();
@@ -182,27 +232,48 @@ const SpriteAtlas = (function() {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Roof tiles
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        // Roof tiles (horizontal lines)
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
         ctx.lineWidth = 0.6;
-        for (let r = 0; r < 4; r++) {
-            const ry = cy - 14 + r * 3.5;
+        for (let r = 0; r < 5; r++) {
+            const ry = cy - 15 + r * 3.2;
             ctx.beginPath();
-            ctx.moveTo(cx - 11 + r * 2.5, ry);
-            ctx.lineTo(cx + 11 - r * 2.5, ry);
+            ctx.moveTo(cx - 12 + r * 2.5, ry);
+            ctx.lineTo(cx + 12 - r * 2.5, ry);
             ctx.stroke();
         }
 
-        // Door
+        // Roof light highlight on left face
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.moveTo(cx - 11, cy - 3);
+        ctx.lineTo(cx - 2, cy - 16);
+        ctx.lineTo(cx + 5, cy - 5);
+        ctx.lineTo(cx - 5, cy - 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Door with frame
+        ctx.fillStyle = '#3E2723';
+        ctx.fillRect(cx - 4, cy - 1, 8, 13);
         ctx.fillStyle = '#4E342E';
-        ctx.fillRect(cx - 3, cy + 1, 6, 11);
+        ctx.fillRect(cx - 3, cy, 6, 11);
+        // Door knob
         ctx.fillStyle = '#FFC107';
         ctx.beginPath();
         ctx.arc(cx + 2, cy + 7, 1.2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Window
-        const winGrad = ctx.createRadialGradient(cx + 5, cy - 1, 1, cx + 5, cy - 1, 5);
+        // Window with warm glow
+        const winGlow = ctx.createRadialGradient(cx + 5, cy - 1, 0.5, cx + 5, cy - 1, 8);
+        winGlow.addColorStop(0, 'rgba(255,245,180,0.35)');
+        winGlow.addColorStop(0.3, 'rgba(255,240,160,0.15)');
+        winGlow.addColorStop(1, 'rgba(255,200,100,0)');
+        ctx.fillStyle = winGlow;
+        ctx.fillRect(cx + 1, cy - 5, 10, 10);
+
+        // Window pane
+        const winGrad = ctx.createRadialGradient(cx + 5, cy - 1, 0.5, cx + 5, cy - 1, 4);
         winGrad.addColorStop(0, '#FFF9C4');
         winGrad.addColorStop(1, '#81D4FA');
         ctx.fillStyle = winGrad;
@@ -213,9 +284,16 @@ const SpriteAtlas = (function() {
         ctx.beginPath(); ctx.moveTo(cx + 5.5, cy - 2); ctx.lineTo(cx + 5.5, cy + 3); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx + 3, cy + 0.5); ctx.lineTo(cx + 8, cy + 0.5); ctx.stroke();
 
-        // Chimney
-        ctx.fillStyle = '#757575';
-        ctx.fillRect(cx + 5, cy - 14, 4, 8);
+        // Chimney with 3D sides
+        ctx.fillStyle = '#616161';
+        ctx.fillRect(cx + 5, cy - 16, 5, 9);
+        ctx.fillStyle = '#757575'; // lit face (left)
+        ctx.fillRect(cx + 5, cy - 16, 3, 9);
+        // Chimney smoke
+        ctx.fillStyle = 'rgba(180,180,180,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(cx + 7, cy - 18, 4, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         return c;
     }
@@ -268,11 +346,31 @@ const SpriteAtlas = (function() {
         return c;
     }
 
-    // Path/dirt tile
+    // Shared rounded-rect clip helper
+    function roundedRectClip(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+        ctx.clip();
+    }
+
+    // Path/dirt tile (with rounded corners)
     function renderPathTile(variant) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const w = SPRITE_SIZE, h = SPRITE_SIZE;
+        const cornerR = 8;
+
+        // Clip to rounded rect so path edges aren't sharp squares
+        roundedRectClip(ctx, 0, 0, w, h, cornerR);
 
         const pathColors = [
             ['#C4A46C', '#B8956A'],
@@ -345,11 +443,13 @@ const SpriteAtlas = (function() {
         return c;
     }
 
-    // Ice path tile (for Frozen Pass)
+    // Ice path tile (for Frozen Pass — with rounded corners)
     function renderIcePathTile(variant) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const w = SPRITE_SIZE, h = SPRITE_SIZE;
+
+        roundedRectClip(ctx, 0, 0, w, h, 8);
 
         // Dark blue-grey ice base — contrasts with white snow
         const grad = ctx.createLinearGradient(0, 0, w, h);
@@ -432,11 +532,13 @@ const SpriteAtlas = (function() {
         return c;
     }
 
-    // Cobblestone path tile (for Fortress Siege)
+    // Cobblestone path tile (for Fortress Siege — with rounded corners)
     function renderCobbleTile(variant) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const w = SPRITE_SIZE, h = SPRITE_SIZE;
+
+        roundedRectClip(ctx, 0, 0, w, h, 8);
 
         // Base
         ctx.fillStyle = '#8a8075';
@@ -555,11 +657,14 @@ const SpriteAtlas = (function() {
         return c;
     }
 
-    // Lava path tile (cracked dark stone with orange glow)
+    // Lava path tile (cracked dark stone with orange glow — rounded corners)
     function renderLavaPathTile(variant) {
         const c = makeCanvas();
         const ctx = c.getContext('2d');
         const w = SPRITE_SIZE, h = SPRITE_SIZE;
+
+        roundedRectClip(ctx, 0, 0, w, h, 8);
+
         // Dark cracked stone base
         ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#222'; ctx.fillRect(2, 2, w-4, h-4);
@@ -623,6 +728,78 @@ const SpriteAtlas = (function() {
         return c;
     }
 
+    // ---- 3D Extrusion Helper ----
+
+    // Takes a flat tile canvas and draws 3D bevel edges on it
+    // isRaised=true: terrain pops up (light top-left, dark bottom-right edges)
+    // isRaised=false: path sinks down (inverted: dark top-left, light bottom-right edges)
+    function extrudeTile(sourceCanvas, isRaised) {
+        const w = sourceCanvas.width, h = sourceCanvas.height;
+        const c = makeCanvas(w, h);
+        const ctx = c.getContext('2d');
+        const bevel = 6; // edge width in pixels (increased for visible 3D depth)
+        const cr = 8;    // corner radius for bevel edges
+
+        // Copy the flat source
+        ctx.drawImage(sourceCanvas, 0, 0);
+
+        // Side edge colors
+        const mid = ctx.getImageData(w / 2, h / 2, 1, 1).data;
+        const midHex = `#${mid[0].toString(16).padStart(2,'0')}${mid[1].toString(16).padStart(2,'0')}${mid[2].toString(16).padStart(2,'0')}`;
+
+        const darkEdge  = darkenColor(midHex, 0.22);
+        const darkEdge2 = darkenColor(midHex, 0.12);
+        const lightEdge = lightenColor(midHex, 0.08);
+        const lightEdge2 = lightenColor(midHex, 0.04);
+
+        // Draw bevel edges clipped to a slightly expanded rounded rect
+        // so the corners follow the tile's rounded shape
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cr, -1);
+        ctx.lineTo(w - cr, -1);
+        ctx.arcTo(w + 1, -1, w + 1, cr, cr);
+        ctx.lineTo(w + 1, h - cr);
+        ctx.arcTo(w + 1, h + 1, w - cr, h + 1, cr);
+        ctx.lineTo(cr, h + 1);
+        ctx.arcTo(-1, h + 1, -1, h - cr, cr);
+        ctx.lineTo(-1, cr);
+        ctx.arcTo(-1, -1, cr, -1, cr);
+        ctx.closePath();
+        ctx.clip();
+
+        if (isRaised) {
+            // ---- RAISED (buildable terrain): light top-left, dark bottom-right ----
+            ctx.fillStyle = darkEdge;
+            ctx.fillRect(0, h - bevel, w, bevel);
+            ctx.fillStyle = darkEdge2;
+            ctx.fillRect(w - bevel, 0, bevel, h - bevel);
+            ctx.fillStyle = lightEdge;
+            ctx.fillRect(0, 0, w - bevel, bevel);
+            ctx.fillStyle = lightEdge2;
+            ctx.fillRect(0, bevel, bevel, h - bevel);
+        } else {
+            // ---- RECESSED (path): dark top-left, light bottom-right ----
+            ctx.fillStyle = darkEdge;
+            ctx.fillRect(0, 0, w, bevel);
+            ctx.fillStyle = darkEdge2;
+            ctx.fillRect(0, bevel, bevel, h - bevel);
+            ctx.fillStyle = lightEdge;
+            ctx.fillRect(bevel, h - bevel, w - bevel, bevel);
+            ctx.fillStyle = lightEdge2;
+            ctx.fillRect(w - bevel, bevel, bevel, h - bevel);
+        }
+
+        ctx.restore();
+
+        // Subtle inner shadow at bevel boundaries for crispness
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bevel, bevel, w - bevel * 2, h - bevel * 2);
+
+        return c;
+    }
+
     // ---- Public API ----
 
     function init() {
@@ -633,11 +810,20 @@ const SpriteAtlas = (function() {
         for (let i = 0; i < 8; i++) {
             spriteBank.grass.push(renderGrassTile(i));
         }
+        // Grass 3D (raised terrain)
+        spriteBank.grass_3d = [];
+        for (let i = 0; i < 8; i++) {
+            spriteBank.grass_3d.push(extrudeTile(spriteBank.grass[i], true));
+        }
 
         // Snow terrain variants (for Frozen Pass)
         spriteBank.snow = [];
         for (let i = 0; i < 6; i++) {
             spriteBank.snow.push(renderSnowTile(i));
+        }
+        spriteBank.snow_3d = [];
+        for (let i = 0; i < 6; i++) {
+            spriteBank.snow_3d.push(extrudeTile(spriteBank.snow[i], true));
         }
 
         // Fortress grass variants
@@ -645,11 +831,19 @@ const SpriteAtlas = (function() {
         for (let i = 0; i < 6; i++) {
             spriteBank.fort_grass.push(renderFortGrassTile(i));
         }
+        spriteBank.fort_grass_3d = [];
+        for (let i = 0; i < 6; i++) {
+            spriteBank.fort_grass_3d.push(extrudeTile(spriteBank.fort_grass[i], true));
+        }
 
         // Path variants
         spriteBank.path = [];
         for (let i = 0; i < 6; i++) {
             spriteBank.path.push(renderPathTile(i));
+        }
+        spriteBank.path_3d = [];
+        for (let i = 0; i < 6; i++) {
+            spriteBank.path_3d.push(extrudeTile(spriteBank.path[i], false));
         }
 
         // Ice path variants
@@ -657,11 +851,19 @@ const SpriteAtlas = (function() {
         for (let i = 0; i < 4; i++) {
             spriteBank.ice_path.push(renderIcePathTile(i));
         }
+        spriteBank.ice_path_3d = [];
+        for (let i = 0; i < 4; i++) {
+            spriteBank.ice_path_3d.push(extrudeTile(spriteBank.ice_path[i], false));
+        }
 
         // Cobblestone path variants
         spriteBank.cobble = [];
         for (let i = 0; i < 4; i++) {
             spriteBank.cobble.push(renderCobbleTile(i));
+        }
+        spriteBank.cobble_3d = [];
+        for (let i = 0; i < 4; i++) {
+            spriteBank.cobble_3d.push(extrudeTile(spriteBank.cobble[i], false));
         }
 
         // Wall variants
@@ -673,18 +875,28 @@ const SpriteAtlas = (function() {
         // New terrain types for 4 additional maps
         spriteBank.sand = [];
         for (let i = 0; i < 6; i++) spriteBank.sand.push(renderSandTile(i));
+        spriteBank.sand_3d = [];
+        for (let i = 0; i < 6; i++) spriteBank.sand_3d.push(extrudeTile(spriteBank.sand[i], true));
 
         spriteBank.jungle = [];
         for (let i = 0; i < 6; i++) spriteBank.jungle.push(renderJungleTile(i));
+        spriteBank.jungle_3d = [];
+        for (let i = 0; i < 6; i++) spriteBank.jungle_3d.push(extrudeTile(spriteBank.jungle[i], true));
 
         spriteBank.volcanic = [];
         for (let i = 0; i < 6; i++) spriteBank.volcanic.push(renderVolcanicTile(i));
+        spriteBank.volcanic_3d = [];
+        for (let i = 0; i < 6; i++) spriteBank.volcanic_3d.push(extrudeTile(spriteBank.volcanic[i], true));
 
         spriteBank.lava_path = [];
         for (let i = 0; i < 4; i++) spriteBank.lava_path.push(renderLavaPathTile(i));
+        spriteBank.lava_path_3d = [];
+        for (let i = 0; i < 4; i++) spriteBank.lava_path_3d.push(extrudeTile(spriteBank.lava_path[i], false));
 
         spriteBank.coastal = [];
         for (let i = 0; i < 6; i++) spriteBank.coastal.push(renderCoastalTile(i));
+        spriteBank.coastal_3d = [];
+        for (let i = 0; i < 6; i++) spriteBank.coastal_3d.push(extrudeTile(spriteBank.coastal[i], true));
 
         spriteBank.sand_beach = [];
         for (let i = 0; i < 4; i++) spriteBank.sand_beach.push(renderBeachTile(i));

@@ -183,6 +183,12 @@ const SoundManager = (function() {
         setTimeout(() => playTone(200, 0.4, 'sawtooth', 0.1), 360);
     }
 
+    function shieldBreak() {
+        playTone(800, 0.04, 'square', 0.06);
+        setTimeout(() => playTone(500, 0.06, 'square', 0.05), 50);
+        setTimeout(() => playTone(300, 0.08, 'sawtooth', 0.04), 100);
+    }
+
     function castleRepair() {
         playTone(700, 0.06, 'sine', 0.05);
         setTimeout(() => playTone(900, 0.08, 'sine', 0.06), 80);
@@ -206,6 +212,6 @@ const SoundManager = (function() {
     return {
         init, towerShoot, enemyHit, enemyDie, enemyReachBase,
         waveStart, waveComplete, towerPlace, towerUpgrade, towerSell,
-        gameOver, castleRepair, buttonClick, setVolume, toggle, isEnabled
+        gameOver, castleRepair, shieldBreak, buttonClick, setVolume, toggle, isEnabled
     };
 })();

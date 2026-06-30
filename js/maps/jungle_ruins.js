@@ -52,20 +52,18 @@ MAP_DEFS.jungle_ruins = {
         for (let row = 0; row < GRID_ROWS; row++) {
             for (let col = 0; col < GRID_COLS; col++) {
                 const x = col*CELL_SIZE, y = row*CELL_SIZE, type = GRID_DATA[row][col], cx = x+CELL_SIZE/2, cy = y+CELL_SIZE/2;
-                if (type === CELL_PATH) {
-                    SpriteAtlas.drawTile(ctx, 'path', row+col, x, y);
-                } else if (type === CELL_BLOCKED) {
-                    SpriteAtlas.drawTile(ctx, 'jungle', row+col, x, y);
+                if (type === CELL_BLOCKED) {
+                    SpriteAtlas.drawTile(ctx, 'jungle_3d', row+col, x, y);
                     const dt = DECO_MAP[row+','+col] || BLOCKED_TREE;
                     SpriteAtlas.drawDeco(ctx, dt, row*100+col, cx, cy+2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'jungle', row+col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'jungle_3d', row+col, x, y);
                     const r = seededRand(row*1000+col);
                     if (r > 0.7) { ctx.fillStyle='rgba(20,60,15,0.2)';ctx.beginPath();ctx.ellipse(cx+seededRand(row*77+col)*6-3,cy+seededRand(row*99+col)*4-2,4,2,seededRand(row+col),0,Math.PI*2);ctx.fill(); }
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.05)'; ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        renderSmoothPath(ctx, 'jungle', 12);
         // River winding through
         const rv = []; for(let i=0;i<14;i++){const t=i/13;rv.push({x:80+t*260+Math.sin(t*Math.PI*2.5)*50,y:-5+t*(GAME_HEIGHT+10)});}
         const hw=11,lb=[],rb=[];for(let i=0;i<rv.length;i++){let a;i===0?a=Math.atan2(rv[i+1].y-rv[i].y,rv[i+1].x-rv[i].x):i===rv.length-1?a=Math.atan2(rv[i].y-rv[i-1].y,rv[i].x-rv[i-1].x):(a=(Math.atan2(rv[i].y-rv[i-1].y,rv[i].x-rv[i-1].x)+Math.atan2(rv[i+1].y-rv[i].y,rv[i+1].x-rv[i].x))/2);const px=-Math.sin(a)*hw,py=Math.cos(a)*hw;lb.push({x:rv[i].x+px,y:rv[i].y+py});rb.push({x:rv[i].x-px,y:rv[i].y-py});}

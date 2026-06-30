@@ -79,18 +79,16 @@ MAP_DEFS.crossroads = {
                 const x = col * CELL_SIZE, y = row * CELL_SIZE;
                 const type = GRID_DATA[row][col];
                 const cx = x + CELL_SIZE/2, cy = y + CELL_SIZE/2;
-                if (type === CELL_PATH) {
-                    SpriteAtlas.drawTile(ctx, 'path', row + col, x, y);
-                } else if (type === CELL_BLOCKED) {
-                    SpriteAtlas.drawTile(ctx, 'grass', row + col, x, y);
+                if (type === CELL_BLOCKED) {
+                    SpriteAtlas.drawTile(ctx, 'grass_3d', row + col, x, y);
                     const decoType = DECO_MAP[row+','+col] || BLOCKED_TREE;
                     SpriteAtlas.drawDeco(ctx, decoType, row*100+col, cx, cy+2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'grass', row + col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'grass_3d', row + col, x, y);
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        renderSmoothPath(ctx, 'dirt', 13);
         // Creek
         const cx = 14*CELL_SIZE+CELL_SIZE*0.1, cw = CELL_SIZE*0.8, cyc = 12*CELL_SIZE+CELL_SIZE*0.1, ch = CELL_SIZE*0.8, leftX = 4*CELL_SIZE;
         ctx.fillStyle = '#8D6E63'; ctx.beginPath();

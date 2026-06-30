@@ -17,6 +17,7 @@ class Projectile {
         this.chainCount = fireData.chainCount;
         this.radiationDPS = fireData.radiationDPS;
         this.radiationDur = fireData.radiationDur;
+        this.stunDuration = fireData.stunDuration || 0;
         this.tower = fireData.tower;
 
         // Target data
@@ -97,9 +98,9 @@ class Projectile {
         this.x += dx * ratio;
         this.y += dy * ratio;
 
-        // Trail
-        this.trail.push({ x: this.x, y: this.y, life: 0.15 });
-        if (this.trail.length > 8) this.trail.shift();
+        // Trail (gradient-style: larger fresher particles at front, smaller older at back)
+        this.trail.push({ x: this.x, y: this.y, life: 0.2 });
+        if (this.trail.length > 10) this.trail.shift();
         for (const t of this.trail) t.life -= effectiveDt;
 
         // Check if we're close enough to hit
@@ -113,11 +114,18 @@ class Projectile {
         return null;
     }
 
+    _markKiller(enemy) {
+        // Track which tower type last damaged this enemy (for post-game stats)
+        if (this.tower && this.tower.typeKey) {
+            enemy._killedByTowerType = this.tower.typeKey;
+        }
+    }
+
     _doImpact(enemies) {
         this.alive = false;
         const effects = [];
 
-        // Splash damage (cannon, upgraded frost)
+        // Splash damage (cannon, upgraded frost, mortar)
         if (this.splashRadius > 0) {
             const hitEnemies = [];
             for (const enemy of enemies) {
@@ -128,10 +136,18 @@ class Projectile {
                 if (dist <= this.splashRadius) {
                     const falloff = 1 - (dist / this.splashRadius) * 0.5; // 50% at edge
                     const dmg = Math.floor(this.damage * falloff);
-                    const actualDmg = enemy.takeDamage(dmg, this.armorPierce >= 0.8);
+                    const result = enemy.takeDamage(dmg, this.armorPierce);
+                    const actualDmg = result.damage;
+                    if (actualDmg > 0) this._markKiller(enemy);
                     hitEnemies.push(enemy);
                     if (this.slowAmount > 0) {
                         enemy.applySlow(this.slowAmount, this.slowDuration);
+                    }
+                    if (this.stunDuration > 0) {
+                        enemy.applyStun(this.stunDuration);
+                    }
+                    if (result.shieldBroke) {
+                        effects.push({ type: 'shieldBreak', enemy, pos: { x: enemy.x, y: enemy.y } });
                     }
                     if (actualDmg > 0) {
                         effects.push({ type: 'hit', enemy, damage: actualDmg, pos: { x: enemy.x, y: enemy.y } });
@@ -142,9 +158,17 @@ class Projectile {
         } else {
             // Single target hit
             if (this.targetEnemy && this.targetEnemy.alive) {
-                const actualDmg = this.targetEnemy.takeDamage(this.damage, this.armorPierce >= 0.8);
+                const result = this.targetEnemy.takeDamage(this.damage, this.armorPierce);
+                const actualDmg = result.damage;
+                if (actualDmg > 0) this._markKiller(this.targetEnemy);
                 if (this.slowAmount > 0) {
                     this.targetEnemy.applySlow(this.slowAmount, this.slowDuration);
+                }
+                if (this.stunDuration > 0) {
+                    this.targetEnemy.applyStun(this.stunDuration);
+                }
+                if (result.shieldBroke) {
+                    effects.push({ type: 'shieldBreak', enemy: this.targetEnemy, pos: { x: this.targetEnemy.x, y: this.targetEnemy.y } });
                 }
                 if (actualDmg > 0) {
                     effects.push({ type: 'hit', enemy: this.targetEnemy, damage: actualDmg, pos: { x: this.targetEnemy.x, y: this.targetEnemy.y } });
@@ -166,8 +190,10 @@ class Projectile {
 
         // First hit
         if (currentSource && currentSource.alive) {
-            const dmg = currentSource.takeDamage(damage, false);
+            const result = currentSource.takeDamage(damage, 0);
+            const dmg = result.damage;
             if (dmg > 0) {
+                this._markKiller(currentSource);
                 effects.push({ type: 'lightning', enemy: currentSource, damage: dmg, pos: { x: currentSource.x, y: currentSource.y } });
             }
         }
@@ -192,8 +218,10 @@ class Projectile {
             this.hitEnemies.add(closestEnemy);
             damage = Math.floor(damage * 0.75); // Each chain does 75% of previous
 
-            const dmg = closestEnemy.takeDamage(damage, false);
+            const result = closestEnemy.takeDamage(damage, 0);
+            const dmg = result.damage;
             if (dmg > 0) {
+                this._markKiller(closestEnemy);
                 effects.push({
                     type: 'lightning',
                     enemy: closestEnemy,
@@ -213,8 +241,10 @@ class Projectile {
         const effects = [];
         // Single-target massive hit with purple beam visual
         if (this.targetEnemy && this.targetEnemy.alive) {
-            const dmg = this.targetEnemy.takeDamage(this.damage, true); // plasma ignores armor
+            const result = this.targetEnemy.takeDamage(this.damage, 1.0); // plasma ignores armor
+            const dmg = result.damage;
             if (dmg > 0) {
+                this._markKiller(this.targetEnemy);
                 effects.push({ type: 'plasmaBeam', enemy: this.targetEnemy, damage: dmg, pos: { x: this.targetEnemy.x, y: this.targetEnemy.y }, from: { x: this.x, y: this.y } });
             }
         }
@@ -228,8 +258,10 @@ class Projectile {
         // Global damage to ALL enemies
         for (const enemy of enemies) {
             if (!enemy.alive) continue;
-            const dmg = enemy.takeDamage(this.damage, true); // Nuke ignores armor
+            const result = enemy.takeDamage(this.damage, 1.0); // Nuke ignores armor
+            const dmg = result.damage;
             if (dmg > 0) {
+                this._markKiller(enemy);
                 effects.push({ type: 'nukeHit', enemy, damage: dmg, pos: { x: enemy.x, y: enemy.y } });
             }
             // Apply radiation DoT
@@ -248,13 +280,19 @@ class Projectile {
     render(ctx) {
         if (!this.alive) return;
 
-        // Trail
+        // Trail with gradient falloff (larger+brighter near projectile, smaller+dimmer at tail)
         for (let i = 0; i < this.trail.length; i++) {
             const t = this.trail[i];
-            const alpha = Math.max(0, t.life / 0.15) * 0.5;
-            ctx.fillStyle = `rgba(255,255,200,${alpha})`;
+            const lifeRatio = Math.max(0, t.life / 0.2);
+            const alpha = lifeRatio * 0.45;
+            const size = 1.2 + lifeRatio * 2.5;
+            const grad = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, size);
+            grad.addColorStop(0, `rgba(255,255,220,${alpha})`);
+            grad.addColorStop(0.5, `rgba(255,255,180,${alpha * 0.6})`);
+            grad.addColorStop(1, `rgba(255,200,100,0)`);
+            ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+            ctx.arc(t.x, t.y, size, 0, Math.PI * 2);
             ctx.fill();
         }
 

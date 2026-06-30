@@ -51,6 +51,7 @@
 
                 <!-- Start Button -->
                 <button id="start-game-btn">⚔️ Start Game</button>
+                <div id="continue-container" style="display:none; margin-top:10px;"></div>
             </div>
         </div>
 
@@ -82,6 +83,12 @@
                     <button id="speed-3x" class="speed-btn" data-speed="3">3×</button>
                 </div>
             </div>
+            <div class="hud-item">
+                <button id="pause-btn" class="pause-btn" title="Pause (P)">⏸</button>
+            </div>
+            <div class="hud-item">
+                <button id="mute-btn" class="mute-btn" title="Toggle Sound">🔊</button>
+            </div>
         </div>
 
         <!-- Game Canvas -->
@@ -101,6 +108,7 @@
             <div id="game-over-box">
                 <h1 id="game-over-title">GAME OVER</h1>
                 <p id="game-over-stats"></p>
+                <div id="game-over-stats-detail"></div>
                 <div class="game-over-buttons">
                     <button id="restart-btn" class="restart-btn">🔄 Play Again</button>
                     <button id="main-menu-btn" class="menu-btn">🏠 Main Menu</button>
@@ -110,7 +118,7 @@
 
         <!-- Instructions -->
         <div id="instructions">
-            <span>Click grid → place tower | Click tower → upgrade/sell | Space → start wave | 1/2/3 → speed | Esc → deselect</span>
+            <span>Click grid → place tower | Click tower → upgrade/sell | Right-click tower → cycle target | Space → start wave | 1/2/3 → speed | P → pause | Esc → deselect</span>
         </div>
     </div>
 

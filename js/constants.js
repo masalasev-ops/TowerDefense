@@ -39,9 +39,9 @@ const TOWER_DEFS = {
         unlockWave: 0,
         tier: 1,
         levels: [
-            { cost: 50,  damage: 14,  range: 130, fireRate: 1.0,  splashRadius: 0,   slow: 0,    name: 'Archer Tower',   color: '#4CAF50', projColor: '#8BC34A', projSpeed: 350 },
-            { cost: 40,  damage: 22,  range: 150, fireRate: 1.1,  splashRadius: 0,   slow: 0,    name: 'Longbow Tower',  color: '#388E3C', projColor: '#C0CA33', projSpeed: 420 },
-            { cost: 80,  damage: 34,  range: 170, fireRate: 1.2,  splashRadius: 0,   slow: 0,    name: 'Crossbow Tower', color: '#1B5E20', projColor: '#FFEB3B', projSpeed: 500 },
+            { cost: 50,  damage: 15,  range: 130, fireRate: 1.0,  splashRadius: 0,   slow: 0,    name: 'Archer Tower',   color: '#4CAF50', projColor: '#8BC34A', projSpeed: 350 },
+            { cost: 40,  damage: 23,  range: 150, fireRate: 1.1,  splashRadius: 0,   slow: 0,    name: 'Longbow Tower',  color: '#388E3C', projColor: '#C0CA33', projSpeed: 420 },
+            { cost: 80,  damage: 36,  range: 170, fireRate: 1.2,  splashRadius: 0,   slow: 0,    name: 'Crossbow Tower', color: '#1B5E20', projColor: '#FFEB3B', projSpeed: 500 },
         ]
     },
     frost: {
@@ -51,9 +51,9 @@ const TOWER_DEFS = {
         unlockWave: 0,
         tier: 1,
         levels: [
-            { cost: 75,  damage: 10,  range: 120, fireRate: 0.6,  splashRadius: 0,   slow: 0.40, name: 'Frost Tower',    color: '#64B5F6', projColor: '#B3E5FC', projSpeed: 280 },
-            { cost: 60,  damage: 16,  range: 135, fireRate: 0.65, splashRadius: 25,  slow: 0.50, name: 'Ice Tower',      color: '#42A5F5', projColor: '#81D4FA', projSpeed: 320 },
-            { cost: 120, damage: 25,  range: 150, fireRate: 0.75, splashRadius: 40,  slow: 0.60, name: 'Blizzard Tower',  color: '#1E88E5', projColor: '#E1F5FE', projSpeed: 360 },
+            { cost: 75,  damage: 11,  range: 120, fireRate: 0.60, splashRadius: 0,   slow: 0.40, name: 'Frost Tower',    color: '#64B5F6', projColor: '#B3E5FC', projSpeed: 280 },
+            { cost: 60,  damage: 17,  range: 135, fireRate: 0.65, splashRadius: 25,  slow: 0.50, name: 'Ice Tower',      color: '#42A5F5', projColor: '#81D4FA', projSpeed: 320 },
+            { cost: 120, damage: 26,  range: 150, fireRate: 0.75, splashRadius: 40,  slow: 0.60, name: 'Blizzard Tower',  color: '#1E88E5', projColor: '#E1F5FE', projSpeed: 360 },
         ]
     },
     // --- Level 2: unlocks after wave 3 ---
@@ -64,21 +64,21 @@ const TOWER_DEFS = {
         unlockWave: 3,
         tier: 2,
         levels: [
-            { cost: 100, damage: 40,  range: 110, fireRate: 0.45, splashRadius: 45,  slow: 0,    name: 'Cannon Tower',   color: '#FF5722', projColor: '#333', projSpeed: 200 },
-            { cost: 75,  damage: 60,  range: 120, fireRate: 0.5,  splashRadius: 55,  slow: 0,    name: 'Bombard Tower',  color: '#E64A19', projColor: '#555', projSpeed: 220 },
-            { cost: 150, damage: 90,  range: 135, fireRate: 0.55, splashRadius: 65,  slow: 0,    name: 'Howitzer Tower', color: '#BF360C', projColor: '#777', projSpeed: 250 },
+            { cost: 100, damage: 42,  range: 110, fireRate: 0.45, splashRadius: 45,  slow: 0,    name: 'Cannon Tower',   color: '#FF5722', projColor: '#333', projSpeed: 200 },
+            { cost: 75,  damage: 63,  range: 120, fireRate: 0.5,  splashRadius: 55,  slow: 0,    name: 'Bombard Tower',  color: '#E64A19', projColor: '#555', projSpeed: 220 },
+            { cost: 150, damage: 95,  range: 135, fireRate: 0.55, splashRadius: 65,  slow: 0,    name: 'Howitzer Tower', color: '#BF360C', projColor: '#777', projSpeed: 250 },
         ]
     },
     tesla: {
         name: 'Tesla',
         description: 'Chain lightning strikes',
         icon: '⚡',
-        unlockWave: 3,
+        unlockWave: 4,
         tier: 2,
         levels: [
-            { cost: 150, damage: 25,  range: 140, fireRate: 0.5,  splashRadius: 0,   slow: 0,    name: 'Tesla Coil',     color: '#FFC107', projColor: '#FFF176', projSpeed: 0, chainCount: 3 },
-            { cost: 120, damage: 38,  range: 160, fireRate: 0.55, splashRadius: 0,   slow: 0,    name: 'Arc Tower',      color: '#FFB300', projColor: '#FFEB3B', projSpeed: 0, chainCount: 4 },
-            { cost: 200, damage: 55,  range: 180, fireRate: 0.6,  splashRadius: 0,   slow: 0,    name: 'Storm Tower',    color: '#FF8F00', projColor: '#FFD600', projSpeed: 0, chainCount: 5 },
+            { cost: 150, damage: 26,  range: 140, fireRate: 0.5,  splashRadius: 0,   slow: 0,    name: 'Tesla Coil',     color: '#FFC107', projColor: '#FFF176', projSpeed: 0, chainCount: 3 },
+            { cost: 120, damage: 40,  range: 160, fireRate: 0.55, splashRadius: 0,   slow: 0,    name: 'Arc Tower',      color: '#FFB300', projColor: '#FFEB3B', projSpeed: 0, chainCount: 4 },
+            { cost: 200, damage: 58,  range: 180, fireRate: 0.6,  splashRadius: 0,   slow: 0,    name: 'Storm Tower',    color: '#FF8F00', projColor: '#FFD600', projSpeed: 0, chainCount: 5 },
         ]
     },
     // --- Level 3: unlocks after wave 6 ---
@@ -89,46 +89,46 @@ const TOWER_DEFS = {
         unlockWave: 6,
         tier: 3,
         levels: [
-            { cost: 125, damage: 65,  range: 220, fireRate: 0.3,  splashRadius: 0,   slow: 0,    name: 'Sniper Nest',    color: '#9E9E9E', projColor: '#FFEB3B', projSpeed: 800, armorPierce: 0.5 },
-            { cost: 100, damage: 100, range: 250, fireRate: 0.35, splashRadius: 0,   slow: 0,    name: 'Marksman Nest',  color: '#757575', projColor: '#FFD600', projSpeed: 900, armorPierce: 0.7 },
-            { cost: 180, damage: 150, range: 280, fireRate: 0.4,  splashRadius: 0,   slow: 0,    name: 'Eliminator Nest',color: '#424242', projColor: '#FF6D00', projSpeed: 1000, armorPierce: 1.0 },
+            { cost: 125, damage: 68,  range: 220, fireRate: 0.3,  splashRadius: 0,   slow: 0,    name: 'Sniper Nest',    color: '#9E9E9E', projColor: '#FFEB3B', projSpeed: 800, armorPierce: 0.5 },
+            { cost: 100, damage: 105, range: 250, fireRate: 0.35, splashRadius: 0,   slow: 0,    name: 'Marksman Nest',  color: '#757575', projColor: '#FFD600', projSpeed: 900, armorPierce: 0.7 },
+            { cost: 180, damage: 158, range: 280, fireRate: 0.4,  splashRadius: 0,   slow: 0,    name: 'Eliminator Nest',color: '#424242', projColor: '#FF6D00', projSpeed: 1000, armorPierce: 1.0 },
         ]
     },
     mortar: {
         name: 'Mortar',
         description: 'Long-range explosive shells',
         icon: '🎯',
-        unlockWave: 6,
+        unlockWave: 7,
         tier: 3,
         levels: [
-            { cost: 175, damage: 70,  range: 200, fireRate: 0.35, splashRadius: 55,  slow: 0,    name: 'Mortar Pit',     color: '#795548', projColor: '#FF6D00', projSpeed: 180 },
-            { cost: 130, damage: 110, range: 230, fireRate: 0.38, splashRadius: 65,  slow: 0,    name: 'Siege Mortar',   color: '#5D4037', projColor: '#FF9100', projSpeed: 200 },
-            { cost: 220, damage: 170, range: 260, fireRate: 0.42, splashRadius: 80,  slow: 0,    name: 'Artillery Pit',  color: '#3E2723', projColor: '#FF3D00', projSpeed: 230 },
+            { cost: 175, damage: 74,  range: 200, fireRate: 0.35, splashRadius: 55,  slow: 0,    name: 'Mortar Pit',     color: '#795548', projColor: '#FF6D00', projSpeed: 180 },
+            { cost: 130, damage: 116, range: 230, fireRate: 0.38, splashRadius: 65,  slow: 0,    stunDuration: 0.3, name: 'Siege Mortar',   color: '#5D4037', projColor: '#FF9100', projSpeed: 200 },
+            { cost: 220, damage: 179, range: 260, fireRate: 0.42, splashRadius: 80,  slow: 0,    stunDuration: 0.5, name: 'Artillery Pit',  color: '#3E2723', projColor: '#FF3D00', projSpeed: 230 },
         ]
     },
     // --- Level 4: unlocks after wave 10 ---
     nuke: {
         name: 'Nuke Silo',
-        description: 'Devastating global strike!',
+        description: 'Devastating long-range strike!',
         icon: '☢️',
         unlockWave: 10,
         tier: 4,
         levels: [
-            { cost: 350, damage: 250, range: 9999, fireRate: 0.06, splashRadius: 0,  slow: 0,    name: 'Nuke Silo',      color: '#F44336', projColor: '#FF1744', projSpeed: 0, radiationDPS: 15,  radiationDur: 4 },
-            { cost: 280, damage: 450, range: 9999, fireRate: 0.07, splashRadius: 0,  slow: 0,    name: 'Warhead Silo',   color: '#D32F2F', projColor: '#FF1744', projSpeed: 0, radiationDPS: 30,  radiationDur: 5 },
-            { cost: 450, damage: 800, range: 9999, fireRate: 0.09, splashRadius: 0,  slow: 0,    name: 'Doomsday Silo',  color: '#B71C1C', projColor: '#FF1744', projSpeed: 0, radiationDPS: 60,  radiationDur: 6 },
+            { cost: 400, damage: 263, range: 350, fireRate: 0.06, splashRadius: 80,  slow: 0,    name: 'Nuke Silo',      color: '#F44336', projColor: '#FF1744', projSpeed: 0, radiationDPS: 15,  radiationDur: 4 },
+            { cost: 320, damage: 473, range: 380, fireRate: 0.07, splashRadius: 95,  slow: 0,    name: 'Warhead Silo',   color: '#D32F2F', projColor: '#FF1744', projSpeed: 0, radiationDPS: 30,  radiationDur: 5 },
+            { cost: 500, damage: 840, range: 420, fireRate: 0.09, splashRadius: 110, slow: 0,    name: 'Doomsday Silo',  color: '#B71C1C', projColor: '#FF1744', projSpeed: 0, radiationDPS: 60,  radiationDur: 6 },
         ]
     },
     plasma: {
         name: 'Plasma Turret',
         description: 'Massive energy beam damage',
         icon: '🔮',
-        unlockWave: 10,
+        unlockWave: 12,
         tier: 4,
         levels: [
-            { cost: 400, damage: 120, range: 150, fireRate: 0.25, splashRadius: 0,   slow: 0,    name: 'Plasma Turret',  color: '#7C4DFF', projColor: '#B388FF', projSpeed: 600 },
-            { cost: 300, damage: 200, range: 170, fireRate: 0.28, splashRadius: 0,   slow: 0,    name: 'Ion Cannon',     color: '#651FFF', projColor: '#D1C4E9', projSpeed: 700 },
-            { cost: 500, damage: 320, range: 200, fireRate: 0.32, splashRadius: 0,   slow: 0,    name: 'Obliterator',    color: '#4A148C', projColor: '#EDE7F6', projSpeed: 800 },
+            { cost: 400, damage: 126, range: 150, fireRate: 0.25, splashRadius: 0,   slow: 0,    name: 'Plasma Turret',  color: '#7C4DFF', projColor: '#B388FF', projSpeed: 600 },
+            { cost: 300, damage: 210, range: 170, fireRate: 0.28, splashRadius: 0,   slow: 0,    name: 'Ion Cannon',     color: '#651FFF', projColor: '#D1C4E9', projSpeed: 700 },
+            { cost: 500, damage: 336, range: 200, fireRate: 0.32, splashRadius: 0,   slow: 0,    name: 'Obliterator',    color: '#4A148C', projColor: '#EDE7F6', projSpeed: 800 },
         ]
     }
 };
@@ -196,9 +196,9 @@ const ENEMY_DEFS = {
         gold: 22,
         color: '#4CAF50',
         size: 13,
-        healRadius: 70,
-        healAmount: 6,
-        healInterval: 1.5,
+        healRadius: 80,
+        healAmount: 8,
+        healInterval: 1.3,
     },
     splitter: {
         name: 'Splitter',
@@ -249,91 +249,146 @@ const ENEMY_DEFS = {
 };
 
 // --- Wave Configuration ---
-// Each entry: { enemyType, count } for the base composition
-const WAVE_COMPOSITIONS = [
-    // Wave 1-3: just grunts
-    [{ type: 'grunt', count: 5 }],
-    [{ type: 'grunt', count: 8 }],
-    [{ type: 'grunt', count: 6 }, { type: 'runner', count: 3 }],
-    // Wave 4-6: grunts + runners
-    [{ type: 'grunt', count: 8 }, { type: 'runner', count: 5 }],
-    [{ type: 'grunt', count: 6 }, { type: 'runner', count: 4 }, { type: 'tank', count: 2 }],
-    [{ type: 'grunt', count: 8 }, { type: 'runner', count: 6 }, { type: 'tank', count: 3 }],
-    // Wave 7-9: mixed
-    [{ type: 'grunt', count: 10 }, { type: 'runner', count: 7 }, { type: 'tank', count: 3 }],
-    [{ type: 'grunt', count: 8 }, { type: 'runner', count: 5 }, { type: 'tank', count: 2 }, { type: 'flyer', count: 4 }],
-    [{ type: 'grunt', count: 10 }, { type: 'runner', count: 8 }, { type: 'tank', count: 3 }, { type: 'flyer', count: 5 }],
-    // Wave 10: boss wave
-    [{ type: 'grunt', count: 6 }, { type: 'runner', count: 4 }, { type: 'boss', count: 1 }],
-];
+// All waves are procedurally generated with randomization so players can't memorize them.
+// Waves 1-10 use fixed templates with mild count variation (±20%) to keep early game
+// approachable while preventing memorization.
+// Waves 11+ are fully procedural with increasing enemy counts and randomization.
 
-// Generate wave compositions beyond the predefined ones
+// Helper: vary a count by ±pct (min 1)
+function varyCount(base, pct) {
+    const delta = Math.floor(base * pct);
+    const min = Math.max(1, base - delta);
+    const max = base + delta;
+    return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+// Generate any wave composition with randomization
 function getWaveComposition(waveNum, difficulty) {
-    if (waveNum <= WAVE_COMPOSITIONS.length && (!difficulty || difficulty === 'normal')) {
-        return WAVE_COMPOSITIONS[waveNum - 1];
-    }
-
-    // Get difficulty offset for when advanced enemies appear
     const diff = (difficulty && DIFFICULTY_DEFS[difficulty])
-        ? DIFFICULTY_DEFS[difficulty] : { advancedEnemyWaveOffset: 0 };
+        ? DIFFICULTY_DEFS[difficulty] : DIFFICULTY_DEFS.normal;
     const offset = diff.advancedEnemyWaveOffset || 0;
+    const rng = Math.random;
 
-    // Procedural generation
     const comp = [];
-    const baseCount = 3 + Math.floor(waveNum * 1.3);
 
-    // Grunts always present
-    comp.push({ type: 'grunt', count: Math.floor(baseCount * 0.4) });
+    // -- Waves 1-10: fixed templates, mild count randomization ---
+    // Same total difficulty as before, just slight variety so it's not memorizable
+    if (waveNum <= 10) {
+        if (waveNum <= 2) {
+            comp.push({ type: 'grunt', count: waveNum === 1 ? varyCount(5, 0.2) : varyCount(8, 0.2) });
+        } else if (waveNum === 3) {
+            comp.push({ type: 'grunt', count: varyCount(6, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(3, 0.2) });
+        } else if (waveNum === 4) {
+            comp.push({ type: 'grunt', count: varyCount(7, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(5, 0.2) });
+        } else if (waveNum === 5) {
+            comp.push({ type: 'grunt', count: varyCount(6, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(4, 0.2) });
+            comp.push({ type: 'tank', count: varyCount(2, 0.3) });
+        } else if (waveNum === 6) {
+            comp.push({ type: 'grunt', count: varyCount(7, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(5, 0.2) });
+            comp.push({ type: 'tank', count: varyCount(3, 0.3) });
+        } else if (waveNum === 7) {
+            comp.push({ type: 'grunt', count: varyCount(9, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(6, 0.2) });
+            comp.push({ type: 'tank', count: varyCount(3, 0.3) });
+        } else if (waveNum === 8) {
+            comp.push({ type: 'grunt', count: varyCount(7, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(5, 0.2) });
+            comp.push({ type: 'tank', count: varyCount(2, 0.3) });
+            comp.push({ type: 'flyer', count: varyCount(4, 0.2) });
+        } else if (waveNum === 9) {
+            comp.push({ type: 'grunt', count: varyCount(9, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(7, 0.2) });
+            comp.push({ type: 'tank', count: varyCount(3, 0.3) });
+            comp.push({ type: 'flyer', count: varyCount(5, 0.2) });
+        } else if (waveNum === 10) {
+            comp.push({ type: 'grunt', count: varyCount(6, 0.2) });
+            comp.push({ type: 'runner', count: varyCount(4, 0.2) });
+            comp.push({ type: 'boss', count: 1 });
+        }
+        return ensureMinCounts(comp);
+    }
 
-    // Runners from wave 3+ (shifted by offset)
+    // -- Waves 11+: fully procedural with randomization --
+    const baseCount = 5 + Math.floor(waveNum * 2.0);
+
+    comp.push({ type: 'grunt', count: varyCount(Math.floor(baseCount * 0.35), 0.25) });
+
     if (waveNum >= Math.max(1, 3 + offset)) {
-        comp.push({ type: 'runner', count: Math.floor(baseCount * 0.25) });
+        comp.push({ type: 'runner', count: varyCount(Math.floor(baseCount * 0.22), 0.25) });
     }
 
-    // Tanks from wave 5+ (shifted)
     if (waveNum >= Math.max(1, 5 + offset)) {
-        comp.push({ type: 'tank', count: Math.floor(baseCount * 0.12) });
+        comp.push({ type: 'tank', count: varyCount(Math.floor(baseCount * 0.14), 0.3) });
     }
 
-    // Flyers from wave 8+ (shifted)
     if (waveNum >= Math.max(1, 8 + offset)) {
-        comp.push({ type: 'flyer', count: Math.floor(baseCount * 0.15) });
+        comp.push({ type: 'flyer', count: varyCount(Math.floor(baseCount * 0.15), 0.25) });
+        comp.push({ type: 'healer', count: varyCount(Math.max(2, Math.floor(baseCount * 0.10)), 0.3) });
     }
 
-    // Healers from wave 8+ (shifted)
-    if (waveNum >= Math.max(1, 8 + offset)) {
-        comp.push({ type: 'healer', count: Math.max(1, Math.floor(baseCount * 0.08)) });
-    }
-
-    // Shielded from wave 11+ (shifted)
     if (waveNum >= Math.max(1, 11 + offset)) {
-        comp.push({ type: 'shielded', count: Math.max(1, Math.floor(baseCount * 0.08)) });
+        comp.push({ type: 'shielded', count: varyCount(Math.max(2, Math.floor(baseCount * 0.10)), 0.25) });
     }
 
-    // Splitters from wave 13+ (shifted)
     if (waveNum >= Math.max(1, 13 + offset)) {
-        comp.push({ type: 'splitter', count: Math.max(1, Math.floor(baseCount * 0.06)) });
+        comp.push({ type: 'splitter', count: varyCount(Math.max(1, Math.floor(baseCount * 0.07)), 0.35) });
     }
 
-    // Phantoms from wave 15+ (shifted)
     if (waveNum >= Math.max(1, 15 + offset)) {
-        comp.push({ type: 'phantom', count: Math.max(1, Math.floor(baseCount * 0.06)) });
+        comp.push({ type: 'phantom', count: varyCount(Math.max(1, Math.floor(baseCount * 0.07)), 0.35) });
     }
 
     // Boss every 10th wave
     if (waveNum % BOSS_WAVE_INTERVAL === 0) comp.push({ type: 'boss', count: 1 });
 
+    // Wildcard surprise (~12% chance): sneak in an enemy type that shouldn't appear yet
+    if (waveNum >= 6 && rng() < 0.12) {
+        const wildcards = [];
+        if (waveNum < 8 + offset) wildcards.push('flyer');
+        if (waveNum < 5 + offset) wildcards.push('tank');
+        if (waveNum < 11 + offset && waveNum >= 7) wildcards.push('shielded');
+        if (waveNum < 13 + offset && waveNum >= 9) wildcards.push('splitter');
+        if (wildcards.length > 0) {
+            const pick = wildcards[Math.floor(rng() * wildcards.length)];
+            const existing = comp.find(g => g.type === pick);
+            if (existing) existing.count += 1;
+            else comp.push({ type: pick, count: varyCount(2, 0.3) });
+        }
+    }
+
+    // Difficulty-specific adjustments
+    if (difficulty === 'hard') {
+        for (const g of comp) {
+            if (g.type !== 'boss' && rng() < 0.25) g.count += 1;
+        }
+    } else if (difficulty === 'easy') {
+        for (const g of comp) {
+            if (g.type !== 'boss' && g.count > 1 && rng() < 0.12) g.count -= 1;
+        }
+    }
+
+    return ensureMinCounts(comp);
+}
+
+function ensureMinCounts(comp) {
+    for (const g of comp) {
+        if (g.count < 1) g.count = 1;
+    }
     return comp;
 }
 
 // --- Wave Difficulty Scaling ---
-const DIFFICULTY_HP_SCALE = 0.10;    // +10% HP per wave (base scaling)
-const DIFFICULTY_SPEED_SCALE = 0.02; // +2% speed per wave (base scaling)
+const DIFFICULTY_HP_SCALE = 0.16;    // +16% HP per wave (base scaling)
+const DIFFICULTY_SPEED_SCALE = 0.03; // +3% speed per wave (base scaling)
 const ELITE_WAVE_INTERVAL = 5;       // Default: every 5 waves = elite
 const ELITE_HP_MULT = 1.4;           // Default elite multipliers
 const ELITE_SPEED_MULT = 1.2;
 const BOSS_WAVE_INTERVAL = 10;
-const WAVE_BONUS_GOLD = 60;          // Base gold bonus for completing a wave
+const WAVE_BONUS_GOLD = 45;          // Base gold bonus for completing a wave
 
 // --- Difficulty Modes ---
 // Each difficulty overrides key gameplay parameters
@@ -341,10 +396,10 @@ const DIFFICULTY_DEFS = {
     easy: {
         name: 'Easy',
         description: 'Relaxed pace with more starting gold',
-        hpMult: 0.65,
+        hpMult: 0.58,
         speedMult: 0.75,
         startingGold: 400,
-        waveBonusGoldMult: 1.40,
+        waveBonusGoldMult: 1.30,
         eliteInterval: 7,
         eliteHpMult: 1.20,
         eliteSpeedMult: 1.10,
@@ -352,44 +407,82 @@ const DIFFICULTY_DEFS = {
         waveDelay: 3.0,
         advancedEnemyWaveOffset: 4,   // New enemies appear this many waves later
         healCastlePerWave: 60,        // Castle auto-heals between waves
+        wavesToWin: 15,
     },
     normal: {
         name: 'Normal',
         description: 'Standard challenge',
-        hpMult: 1.00,
-        speedMult: 1.00,
-        startingGold: 280,
+        hpMult: 0.95,
+        speedMult: 0.90,
+        startingGold: 250,
         waveBonusGoldMult: 1.00,
-        eliteInterval: 5,
-        eliteHpMult: 1.40,
-        eliteSpeedMult: 1.20,
-        spawnInterval: 0.7,
+        eliteInterval: 4,
+        eliteHpMult: 2.20,
+        eliteSpeedMult: 1.30,
+        spawnInterval: 0.65,
         waveDelay: 2.0,
         advancedEnemyWaveOffset: 0,
         healCastlePerWave: 0,
+        wavesToWin: 20,
     },
     hard: {
         name: 'Hard',
         description: 'Tougher enemies, less gold, early threats',
-        hpMult: 1.60,
-        speedMult: 1.25,
-        startingGold: 180,
-        waveBonusGoldMult: 0.65,
+        hpMult: 1.45,
+        speedMult: 1.10,
+        startingGold: 220,
+        waveBonusGoldMult: 0.60,
         eliteInterval: 4,
-        eliteHpMult: 1.70,
-        eliteSpeedMult: 1.40,
-        spawnInterval: 0.45,
-        waveDelay: 1.3,
+        eliteHpMult: 2.00,
+        eliteSpeedMult: 1.35,
+        spawnInterval: 0.55,
+        waveDelay: 1.2,
         advancedEnemyWaveOffset: -2,  // New enemies appear 2 waves earlier
         healCastlePerWave: 0,
+        wavesToWin: 25,
     },
 };
+
+// --- Helper: get active difficulty config (cached lookup) ---
+function getActiveDifficulty() {
+    if (typeof CURRENT_DIFFICULTY !== 'undefined' && DIFFICULTY_DEFS[CURRENT_DIFFICULTY]) {
+        return DIFFICULTY_DEFS[CURRENT_DIFFICULTY];
+    }
+    return DIFFICULTY_DEFS.normal;
+}
 
 let CURRENT_DIFFICULTY = 'normal';
 
 // --- Spawn Timing ---
 const SPAWN_INTERVAL = 0.7;   // Seconds between enemy spawns
 const WAVE_DELAY = 2.0;       // Seconds before first enemy of a wave
+
+// --- Lighting Direction (top-left light source) ---
+const LIGHT_DX = -1;
+const LIGHT_DY = -1;
+const SHADOW_OFFSET_X = 3;
+const SHADOW_OFFSET_Y = 3;
+
+// --- Color Utilities (used by sprites and map rendering) ---
+function lightenColor(hex, amount) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const lr = Math.min(255, r + Math.floor((255 - r) * amount));
+    const lg = Math.min(255, g + Math.floor((255 - g) * amount));
+    const lb = Math.min(255, b + Math.floor((255 - b) * amount));
+    return `rgb(${lr},${lg},${lb})`;
+}
+
+function darkenColor(hex, amount) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const dr = Math.floor(r * (1 - amount));
+    const dg = Math.floor(g * (1 - amount));
+    const db = Math.floor(b * (1 - amount));
+    return `rgb(${dr},${dg},${db})`;
+}
 
 // --- Colors ---
 const COLOR_GRASS = '#5a8a42';

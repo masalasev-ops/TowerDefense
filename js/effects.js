@@ -152,6 +152,337 @@ class PlasmaBolt {
     }
 }
 
+// Tower unlock celebration — splash card + particles
+class TowerUnlockCelebration {
+    constructor(towerDef) {
+        this.towerDef = towerDef;
+        this.life = 3.5;         // total display time
+        this.maxLife = 3.5;
+        this.phase = 'enter';    // enter → hold → exit
+        this.phaseTimer = 0;
+        this.cardY = GAME_HEIGHT / 2;
+        // Spawn initial spark burst
+        this._sparks = [];
+        for (let i = 0; i < 30; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 80 + Math.random() * 180;
+            this._sparks.push({
+                x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.2 + Math.random() * 1.0,
+                maxLife: 1.2 + Math.random() * 1.0,
+                color: Math.random() > 0.5 ? '#FFD700' : '#FFAB00',
+                size: 2 + Math.random() * 4,
+            });
+        }
+    }
+
+    update(dt) {
+        this.life -= dt;
+        this.phaseTimer += dt;
+        if (this.phaseTimer < 0.4) this.phase = 'enter';
+        else if (this.life < 0.6) this.phase = 'exit';
+        else this.phase = 'hold';
+        // Update sparks
+        for (const s of this._sparks) {
+            s.life -= dt;
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.vy += 30 * dt; // gravity
+        }
+        return this.life > 0;
+    }
+
+    render(ctx) {
+        const def = this.towerDef;
+        const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
+        let cardAlpha, cardScale;
+
+        if (this.phase === 'enter') {
+            const t = this.phaseTimer / 0.4; // 0→1 over 0.4s
+            cardAlpha = Math.min(1, t * 3);
+            cardScale = 0.3 + t * 0.7;
+        } else if (this.phase === 'exit') {
+            const t = this.life / 0.6; // 1→0 over 0.6s
+            cardAlpha = t;
+            cardScale = 0.8 + t * 0.2;
+        } else {
+            cardAlpha = 1;
+            cardScale = 1;
+        }
+
+        // Render sparks behind card
+        for (const s of this._sparks) {
+            if (s.life <= 0) continue;
+            const sa = Math.max(0, s.life / s.maxLife);
+            ctx.fillStyle = s.color;
+            ctx.globalAlpha = sa * cardAlpha;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // Card dimensions
+        const cardW = 320, cardH = 160;
+        const bx = cx - cardW / 2, by = cy - cardH / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(cardScale, cardScale);
+        ctx.globalAlpha = cardAlpha;
+
+        // Glow aura behind card
+        const auraGrad = ctx.createRadialGradient(0, 0, 40, 0, 0, cardW * 0.7);
+        auraGrad.addColorStop(0, 'rgba(255,215,0,0.2)');
+        auraGrad.addColorStop(0.5, 'rgba(255,180,0,0.08)');
+        auraGrad.addColorStop(1, 'rgba(255,150,0,0)');
+        ctx.fillStyle = auraGrad;
+        ctx.fillRect(-cardW / 2 - 20, -cardH / 2 - 20, cardW + 40, cardH + 40);
+
+        // Card background (dark glass)
+        ctx.fillStyle = 'rgba(10, 15, 35, 0.92)';
+        ctx.strokeStyle = 'rgba(255,215,0,0.7)';
+        ctx.lineWidth = 2.5;
+        // Rounded rect card
+        const r = 14, hw = cardW / 2, hh = cardH / 2;
+        ctx.beginPath();
+        ctx.moveTo(-hw + r, -hh);
+        ctx.lineTo(hw - r, -hh);
+        ctx.arcTo(hw, -hh, hw, -hh + r, r);
+        ctx.lineTo(hw, hh - r);
+        ctx.arcTo(hw, hh, hw - r, hh, r);
+        ctx.lineTo(-hw + r, hh);
+        ctx.arcTo(-hw, hh, -hw, hh - r, r);
+        ctx.lineTo(-hw, -hh + r);
+        ctx.arcTo(-hw, -hh, -hw + r, -hh, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner glow border
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // "NEW TOWER UNLOCKED!" header
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡ NEW TOWER UNLOCKED! ⚡', 0, -hh + 26);
+
+        // Tower icon (large)
+        ctx.font = '44px sans-serif';
+        ctx.fillText(def.icon, -hw + 55, -5);
+
+        // Tower name
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(def.name, -hw + 95, -22);
+
+        // Tier badge
+        ctx.fillStyle = '#FFAB00';
+        ctx.font = 'bold 10px sans-serif';
+        const tierLabel = 'Tier ' + def.tier + ' — Wave ' + def.unlockWave + '+';
+        ctx.fillText(tierLabel, -hw + 95, 2);
+
+        // Description
+        ctx.fillStyle = '#aaa';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(def.description, -hw + 95, 22);
+
+        // Cost hint
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('Cost: ' + def.levels[0].cost + 'g', -hw + 95, 44);
+
+        ctx.restore();
+
+        // Render sparks on top (recent ones)
+        ctx.globalAlpha = cardAlpha * 0.6;
+        for (const s of this._sparks) {
+            if (s.life <= 0 || s.life > s.maxLife * 0.3) continue;
+            const sa = s.life / (s.maxLife * 0.3);
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size * 0.5 * sa, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// Wave preview splash — centered animated card showing upcoming enemy types
+// All rendering is wrapped in save/restore to prevent canvas state corruption
+class WavePreviewSplash {
+    constructor(waveNum, enemyTypes) {
+        this.waveNum = waveNum;
+        this.enemyTypes = enemyTypes;
+        this.life = 2.8;
+        this.maxLife = 2.8;
+        this.phase = 'enter';
+        this.phaseTimer = 0;
+
+        // Subtle particle burst
+        this._sparks = [];
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 50 + Math.random() * 120;
+            this._sparks.push({
+                x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 0.8 + Math.random() * 0.7,
+                maxLife: 0.8 + Math.random() * 0.7,
+                color: Math.random() > 0.5 ? '#FFD700' : '#FF9800',
+                size: 1.5 + Math.random() * 3,
+            });
+        }
+    }
+
+    update(dt) {
+        this.life -= dt;
+        this.phaseTimer += dt;
+        if (this.phaseTimer < 0.35) this.phase = 'enter';
+        else if (this.life < 0.5) this.phase = 'exit';
+        else this.phase = 'hold';
+        for (const s of this._sparks) {
+            s.life -= dt;
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.vy += 25 * dt;
+        }
+        return this.life > 0;
+    }
+
+    render(ctx) {
+        ctx.save(); // Isolate all state changes
+        const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT * 0.42;
+        let cardAlpha, cardScale;
+
+        if (this.phase === 'enter') {
+            const t = Math.min(1, this.phaseTimer / 0.35);
+            cardAlpha = Math.min(1, t * 3);
+            cardScale = 0.4 + t * 0.6;
+        } else if (this.phase === 'exit') {
+            const t = Math.max(0, this.life / 0.5);
+            cardAlpha = t;
+            cardScale = 0.85 + t * 0.15;
+        } else {
+            cardAlpha = 1;
+            cardScale = 1;
+        }
+
+        // Sparks behind card
+        ctx.save();
+        for (const s of this._sparks) {
+            if (s.life <= 0) continue;
+            const sa = Math.max(0, s.life / s.maxLife);
+            ctx.globalAlpha = sa * cardAlpha;
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Card layout
+        const hasBoss = this.enemyTypes.includes('boss');
+        const accentColor = hasBoss ? '#F44336' : '#FF9800';
+        const enemyCount = this.enemyTypes.length;
+        const cardW = Math.min(380, 200 + enemyCount * 50);
+        const cardH = 170;
+        const hw = cardW / 2, hh = cardH / 2;
+        const r = 16;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(cardScale, cardScale);
+        ctx.globalAlpha = cardAlpha;
+
+        // Glow aura
+        const auraGrad = ctx.createRadialGradient(0, 0, 30, 0, 0, cardW * 0.6);
+        auraGrad.addColorStop(0, hasBoss ? 'rgba(244,67,54,0.18)' : 'rgba(255,152,0,0.15)');
+        auraGrad.addColorStop(0.5, 'rgba(255,180,0,0.05)');
+        auraGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = auraGrad;
+        ctx.fillRect(-hw - 20, -hh - 20, cardW + 40, cardH + 40);
+
+        // Card background
+        ctx.fillStyle = 'rgba(10, 15, 35, 0.94)';
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-hw + r, -hh);
+        ctx.lineTo(hw - r, -hh);
+        ctx.arcTo(hw, -hh, hw, -hh + r, r);
+        ctx.lineTo(hw, hh - r);
+        ctx.arcTo(hw, hh, hw - r, hh, r);
+        ctx.lineTo(-hw + r, hh);
+        ctx.arcTo(-hw, hh, -hw, hh - r, r);
+        ctx.lineTo(-hw, -hh + r);
+        ctx.arcTo(-hw, -hh, -hw + r, -hh, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner border
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Wave header
+        ctx.fillStyle = accentColor;
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚔ WAVE ' + this.waveNum + ' INCOMING ⚔', 0, -hh + 28);
+
+        // Enemy type icons in a row
+        const iconMap = {
+            'grunt': '👤', 'runner': '🏃', 'tank': '🛡️', 'flyer': '🦇',
+            'boss': '👹', 'healer': '💚', 'splitter': '🧨', 'splitter_minion': '⬜',
+            'shielded': '🔵', 'phantom': '👻'
+        };
+        const nameMap = {
+            'grunt': 'Grunt', 'runner': 'Runner', 'tank': 'Tank', 'flyer': 'Flyer',
+            'boss': 'Boss', 'healer': 'Healer', 'splitter': 'Splitter', 'splitter_minion': 'Fragment',
+            'shielded': 'Shielded', 'phantom': 'Phantom'
+        };
+
+        const iconSize = 32;
+        const spacing = Math.min(48, (cardW - 60) / Math.max(enemyCount, 1));
+        const startX = -((enemyCount - 1) * spacing) / 2;
+
+        for (let i = 0; i < enemyCount; i++) {
+            const t = enemyTypes[i];
+            const ix = startX + i * spacing;
+            const iy = 10;
+
+            ctx.fillStyle = t === 'boss' ? 'rgba(244,67,54,0.2)' : 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.arc(ix, iy, iconSize / 2 + 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = iconSize + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(iconMap[t] || '❓', ix, iy - 1);
+
+            ctx.fillStyle = '#ccc';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillText(nameMap[t] || t, ix, iy + iconSize / 2 + 10);
+        }
+
+        ctx.restore(); // card scale/translate/alpha
+        ctx.restore(); // top-level isolation
+    }
+}
+
 class LightningBolt {
     constructor(from, to) {
         this.from = from;
@@ -219,6 +550,8 @@ const activeEffects = {
     nukeFlashes: [],
     shockwaves: [],
     lightningBolts: [],
+    unlockCelebrations: [],
+    wavePreviews: [],
 
     update(dt) {
         this.particles = this.particles.filter(p => p.update(dt));
@@ -226,6 +559,8 @@ const activeEffects = {
         this.nukeFlashes = this.nukeFlashes.filter(f => f.update(dt));
         this.shockwaves = this.shockwaves.filter(s => s.update(dt));
         this.lightningBolts = this.lightningBolts.filter(l => l.update(dt));
+        this.unlockCelebrations = this.unlockCelebrations.filter(c => c.update(dt));
+        this.wavePreviews = this.wavePreviews.filter(w => w.update(dt));
     },
 
     render(ctx) {
@@ -235,6 +570,10 @@ const activeEffects = {
         for (const s of this.shockwaves) s.render(ctx);
         // Nuke flashes render on top
         for (const f of this.nukeFlashes) f.render(ctx);
+        // Wave preview splashes render above celebrations
+        for (const w of this.wavePreviews) w.render(ctx);
+        // Tower unlock celebrations render on top of everything
+        for (const c of this.unlockCelebrations) c.render(ctx);
     },
 
     clear() {
@@ -243,52 +582,126 @@ const activeEffects = {
         this.nukeFlashes = [];
         this.shockwaves = [];
         this.lightningBolts = [];
+        this.unlockCelebrations = [];
+        this.wavePreviews = [];
     },
 
-    // Helper to spawn death explosion
+    spawnUnlockCelebration(towerDef) {
+        // Don't stack multiple celebrations
+        if (this.unlockCelebrations.length > 0) return;
+        this.unlockCelebrations.push(new TowerUnlockCelebration(towerDef));
+    },
+
+    spawnWavePreview(waveNum, enemyTypes) {
+        // Delegated to ui.js for CSS-based splash (avoids canvas state issues)
+        if (typeof window._showWaveSplash === 'function') {
+            window._showWaveSplash(waveNum, enemyTypes);
+        }
+    },
+
+    // Helper to spawn death explosion (multi-phase: bloom -> particles -> smoke)
     spawnEnemyDeath(enemy) {
-        const numParticles = enemy.typeKey === 'boss' ? 30 : 8;
-        for (let i = 0; i < numParticles; i++) {
+        const numParticles = enemy.typeKey === 'boss' ? 35 : 10;
+
+        // Phase 1: Bloom flash (white expansion) — spawn larger white particles that fade fast
+        for (let i = 0; i < 4; i++) {
             this.particles.push(new Particle(enemy.x, enemy.y, {
-                speed: 40 + Math.random() * 80,
-                life: 0.3 + Math.random() * 0.4,
-                color: enemy.color,
-                size: 2 + Math.random() * 4,
-                gravity: 20,
+                speed: 15 + Math.random() * 25,
+                life: 0.1 + Math.random() * 0.15,
+                color: '#ffffff',
+                size: enemy.size * 0.5 + Math.random() * enemy.size * 0.3,
+                gravity: 0,
             }));
         }
+
+        // Phase 2: Colored explosion particles
+        for (let i = 0; i < numParticles; i++) {
+            this.particles.push(new Particle(enemy.x, enemy.y, {
+                speed: 40 + Math.random() * 100,
+                life: 0.25 + Math.random() * 0.5,
+                color: enemy.color,
+                size: 2 + Math.random() * 4,
+                gravity: 25,
+            }));
+        }
+
+        // Phase 3: Smoke residue (dark puffs that expand and fade slowly)
+        for (let i = 0; i < 3; i++) {
+            const smokeAngle = Math.random() * Math.PI * 2;
+            const smokeDist = Math.random() * 8;
+            this.particles.push(new Particle(
+                enemy.x + Math.cos(smokeAngle) * smokeDist,
+                enemy.y + Math.sin(smokeAngle) * smokeDist, {
+                speed: 3 + Math.random() * 5,
+                life: 0.3 + Math.random() * 0.3,
+                color: '#555555',
+                size: 3 + Math.random() * 3,
+                gravity: -5, // float upward
+            }));
+        }
+
+        // Gold text
         this.floatingTexts.push(new FloatingText(
             enemy.x, enemy.y - enemy.size,
             `+${enemy.gold}g`, '#FFD600'
         ));
     },
 
-    // Helper for projectile hit
+    // Helper for projectile hit (enhanced with ring + streaks)
     spawnHitSpark(x, y, color = '#FFEB3B') {
-        for (let i = 0; i < 5; i++) {
+        // Spark particles
+        for (let i = 0; i < 6; i++) {
             this.particles.push(new Particle(x, y, {
-                speed: 30 + Math.random() * 50,
-                life: 0.15 + Math.random() * 0.2,
+                speed: 30 + Math.random() * 60,
+                life: 0.12 + Math.random() * 0.2,
                 color: color,
-                size: 1 + Math.random() * 2,
+                size: 1 + Math.random() * 2.5,
             }));
         }
+        // Small impact ring (growing circle particle)
+        this.particles.push(new Particle(x, y, {
+            speed: 40, life: 0.25, color: 'rgba(255,255,255,0.7)', size: 1, gravity: 0,
+        }));
     },
 
-    // Helper for explosion
+    // Helper for explosion (enhanced with flash + smoke ring + debris)
     spawnExplosion(x, y, radius) {
-        const numParticles = Math.floor(radius / 3);
+        const numParticles = Math.floor(radius / 2.5);
+        // Flash center
+        for (let i = 0; i < 4; i++) {
+            this.particles.push(new Particle(x, y, {
+                speed: 10 + Math.random() * 20,
+                life: 0.1 + Math.random() * 0.1,
+                color: '#ffffff',
+                size: 2 + Math.random() * 3,
+                gravity: 0,
+            }));
+        }
+        // Explosion particles
         for (let i = 0; i < numParticles; i++) {
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * radius;
             this.particles.push(new Particle(
-                x + Math.cos(angle) * dist * 0.5,
-                y + Math.sin(angle) * dist * 0.5, {
-                speed: 50 + Math.random() * 120,
+                x + Math.cos(angle) * dist * 0.4,
+                y + Math.sin(angle) * dist * 0.4, {
+                speed: 50 + Math.random() * 130,
                 life: 0.3 + Math.random() * 0.5,
                 color: Math.random() > 0.5 ? '#FF6D00' : '#FFAB00',
                 size: 2 + Math.random() * 5,
-                gravity: 10,
+                gravity: 12,
+            }));
+        }
+        // Smoke ring (dark particles expanding outward slowly)
+        for (let i = 0; i < 5; i++) {
+            const sa = Math.random() * Math.PI * 2;
+            this.particles.push(new Particle(
+                x + Math.cos(sa) * radius * 0.3,
+                y + Math.sin(sa) * radius * 0.3, {
+                speed: 15 + Math.random() * 25,
+                life: 0.4 + Math.random() * 0.4,
+                color: '#666666',
+                size: 2 + Math.random() * 3,
+                gravity: -8,
             }));
         }
     },
@@ -343,6 +756,13 @@ const activeEffects = {
                     break;
                 case 'nukeHit':
                     this.spawnDamageText(effect.pos.x, effect.pos.y - 10, effect.damage);
+                    break;
+                case 'shieldBreak':
+                    this.spawnHitSpark(effect.pos.x, effect.pos.y, '#64B5F6');
+                    this.floatingTexts.push(new FloatingText(
+                        effect.pos.x, effect.pos.y - 14, '💥 Shield Down!', '#64B5F6'
+                    ));
+                    if (typeof SoundManager !== 'undefined') SoundManager.shieldBreak();
                     break;
                 case 'nukeFlash':
                     this.spawnNukeFlash();

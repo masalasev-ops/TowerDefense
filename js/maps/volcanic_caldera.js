@@ -89,26 +89,13 @@ MAP_DEFS.volcanic_caldera = {
                 const type = GRID_DATA[row][col];
                 const cx = x + CELL_SIZE / 2, cy = y + CELL_SIZE / 2;
 
-                if (type === CELL_PATH) {
-                    // Lunar dust trail
-                    const pGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
-                    pGrad.addColorStop(0, '#9E9E9E'); pGrad.addColorStop(1, '#757575');
-                    ctx.fillStyle = pGrad;
-                    ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-                    // Footprint-like texture
-                    ctx.fillStyle = 'rgba(0,0,0,0.06)';
-                    for (let i = 0; i < 3; i++) {
-                        ctx.beginPath();
-                        ctx.arc(x + 8 + i * 12, y + 10 + (i % 2) * 14, 4, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                } else if (type === CELL_BLOCKED) {
+                if (type === CELL_BLOCKED) {
                     // Lunar surface
-                    SpriteAtlas.drawTile(ctx, 'volcanic', row + col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'volcanic_3d', row + col, x, y);
                     const dt = DECO_MAP[row + ',' + col] || BLOCKED_ROCK;
                     SpriteAtlas.drawDeco(ctx, dt, row * 100 + col, cx, cy + 2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'volcanic', row + col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'volcanic_3d', row + col, x, y);
                     // Small crater speckles
                     const r = seededRand(row * 1000 + col);
                     if (r > 0.78) {
@@ -122,10 +109,9 @@ MAP_DEFS.volcanic_caldera = {
                         ctx.fill();
                     }
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-                ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        renderSmoothPath(ctx, 'lunar', 12);
 
         // Large craters with shadow rims
         const craters = [

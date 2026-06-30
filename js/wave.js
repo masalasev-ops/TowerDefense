@@ -12,6 +12,7 @@ class WaveManager {
         this.allSpawned = false;
         this.totalEnemiesInWave = 0;
         this.enemiesKilledThisWave = 0;
+        this._enemiesRemoved = 0;  // counter: enemies killed + reached base
 
         // Callbacks
         this.onWaveComplete = null;
@@ -23,9 +24,9 @@ class WaveManager {
         this.active = true;
         this.allSpawned = false;
         this.enemiesKilledThisWave = 0;
+        this._enemiesRemoved = 0;
 
-        const diff = (typeof DIFFICULTY_DEFS !== 'undefined' && DIFFICULTY_DEFS[CURRENT_DIFFICULTY])
-            ? DIFFICULTY_DEFS[CURRENT_DIFFICULTY] : { waveDelay: 2.0, spawnInterval: 0.7 };
+        const diff = getActiveDifficulty();
         this.waveStartTimer = diff.waveDelay;
         const spawnInterval = diff.spawnInterval;
 
@@ -85,21 +86,16 @@ class WaveManager {
         this.enemiesKilledThisWave++;
     }
 
-    isWaveComplete(enemies) {
+    isWaveComplete() {
         if (!this.active) return false;
         if (!this.allSpawned) return false;
-
-        // Check all enemies are dead
-        for (const enemy of enemies) {
-            if (enemy.alive) return false;
-        }
-        return true;
+        // Counter-based: all enemies either killed or reached base
+        return this._enemiesRemoved >= this.totalEnemiesInWave;
     }
 
     getWaveBonusGold() {
-        const base = WAVE_BONUS_GOLD + this.waveNum * 5;
-        const diff = (typeof DIFFICULTY_DEFS !== 'undefined' && DIFFICULTY_DEFS[CURRENT_DIFFICULTY])
-            ? DIFFICULTY_DEFS[CURRENT_DIFFICULTY] : { waveBonusGoldMult: 1.0 };
+        const base = WAVE_BONUS_GOLD + this.waveNum * 3;
+        const diff = getActiveDifficulty();
         return Math.floor(base * diff.waveBonusGoldMult);
     }
 

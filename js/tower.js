@@ -27,6 +27,9 @@ class Tower {
         this.angle = 0; // facing direction
         this.totalInvested = this.currentCost;
 
+        // Targeting mode: 'progress' | 'strongest' | 'weakest' | 'fastest'
+        this.targetMode = 'progress';
+
         // Nuke specific
         this.nukeCharge = 0; // 0 to 1, visual charge indicator
     }
@@ -49,6 +52,7 @@ class Tower {
         this.chainCount = stats.chainCount || 0;
         this.radiationDPS = stats.radiationDPS || 0;
         this.radiationDur = stats.radiationDur || 0;
+        this.stunDuration = stats.stunDuration || 0;
         this.statsName = stats.name;
         this.statsColor = stats.color;
     }
@@ -70,7 +74,19 @@ class Tower {
     }
 
     getSellValue() {
-        return Math.floor(this.totalInvested * 0.6);
+        return Math.floor(this.totalInvested * 0.4);
+    }
+
+    cycleTargetMode() {
+        const modes = ['progress', 'strongest', 'weakest', 'fastest'];
+        const idx = modes.indexOf(this.targetMode);
+        this.targetMode = modes[(idx + 1) % modes.length];
+        return this.targetMode;
+    }
+
+    getTargetModeLabel() {
+        const labels = { progress: 'Furthest Along', strongest: 'Strongest', weakest: 'Lowest HP', fastest: 'Fastest' };
+        return labels[this.targetMode] || 'Furthest Along';
     }
 
     findTarget(enemies) {
@@ -88,12 +104,30 @@ class Tower {
 
         if (inRange.length === 0) return null;
 
-        // Targeting priority: closest to the base (highest progress)
-        inRange.sort((a, b) => {
-            const aDist = a.enemy.distanceToEnd();
-            const bDist = b.enemy.distanceToEnd();
-            return aDist - bDist; // Smaller distance to end = closer to base = higher priority
-        });
+        // Targeting priority based on selected mode
+        switch (this.targetMode) {
+            case 'strongest':
+                // Highest max HP first
+                inRange.sort((a, b) => b.enemy.maxHp - a.enemy.maxHp);
+                break;
+            case 'weakest':
+                // Lowest current HP first (cleanup)
+                inRange.sort((a, b) => a.enemy.hp - b.enemy.hp);
+                break;
+            case 'fastest':
+                // Highest speed first
+                inRange.sort((a, b) => b.enemy.speed - a.enemy.speed);
+                break;
+            case 'progress':
+            default:
+                // Closest to the base (highest progress) — default
+                inRange.sort((a, b) => {
+                    const aDist = a.enemy.distanceToEnd();
+                    const bDist = b.enemy.distanceToEnd();
+                    return aDist - bDist;
+                });
+                break;
+        }
 
         return inRange[0].enemy;
     }
@@ -139,6 +173,7 @@ class Tower {
                 chainCount: this.chainCount,
                 radiationDPS: this.radiationDPS,
                 radiationDur: this.radiationDur,
+                stunDuration: this.stunDuration,
                 typeKey: this.typeKey,
             };
         }
@@ -149,7 +184,15 @@ class Tower {
     render(ctx) {
         const x = this.x;
         const y = this.y;
-        const s = CELL_SIZE * 0.38;
+        const baseS = CELL_SIZE * 0.38;
+        const levelBonus = this.level * 1.2; // larger body at higher levels
+        const s = baseS + levelBonus;
+
+        // Directional ground shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y + 2, s * 1.3, s * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         // Base platform
         ctx.fillStyle = '#5D4037';
@@ -168,17 +211,43 @@ class Tower {
         const color = this.statsColor;
 
         if (this.typeKey === 'archer') {
-            // Arrow tower: tall thin shape
-            ctx.fillStyle = color;
-            ctx.fillRect(-6, -12, 12, 24);
-            ctx.fillStyle = this._lighten(color, 0.3);
-            ctx.fillRect(-3, -14, 6, 4);
-            // Bow
+            // Wooden watchtower with pointed roof
+            // Tower body — wider wooden base
+            ctx.fillStyle = '#6D4C41';
+            ctx.fillRect(-8, 0, 16, 10);
+            ctx.fillStyle = '#8D6E63';
+            ctx.fillRect(-7, -10, 14, 12);
+            // Wood plank lines
             ctx.strokeStyle = '#5D4037';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 0.5;
+            for (let ly = -8; ly <= 0; ly += 4) {
+                ctx.beginPath(); ctx.moveTo(-7, ly); ctx.lineTo(7, ly); ctx.stroke();
+            }
+            // Pointed roof
+            ctx.fillStyle = '#4E342E';
             ctx.beginPath();
-            ctx.arc(0, -8, 8, -0.8, 0.8);
+            ctx.moveTo(-10, -10);
+            ctx.lineTo(0, -18);
+            ctx.lineTo(10, -10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#5D4037';
+            ctx.beginPath();
+            ctx.moveTo(-7, -10);
+            ctx.lineTo(0, -17);
+            ctx.lineTo(0, -10);
+            ctx.closePath();
+            ctx.fill();
+            // Bow in front
+            ctx.strokeStyle = '#3E2723';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(0, -3, 8, -1.0, 1.0);
             ctx.stroke();
+            ctx.strokeStyle = '#5D4037';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(0, -10); ctx.lineTo(0, 6); ctx.stroke(); // bowstring
 
         } else if (this.typeKey === 'cannon') {
             // Cannon: circular base with barrel
@@ -240,19 +309,43 @@ class Tower {
             ctx.shadowBlur = 0;
 
         } else if (this.typeKey === 'sniper') {
-            // Sniper: narrow tall tower
-            ctx.fillStyle = color;
-            ctx.fillRect(-5, -14, 10, 28);
-            ctx.fillStyle = this._lighten(color, 0.3);
-            ctx.fillRect(-3, -14, 6, 4);
-            // Long barrel
+            // Low-profile bunker with long barrel and bipod
+            // Bunker body — wide and low
+            ctx.fillStyle = '#546E7A';
+            ctx.fillRect(-9, -4, 18, 12);
+            ctx.fillStyle = '#455A64';
+            ctx.fillRect(-8, -4, 16, 10);
+            // Camo stripe
+            ctx.fillStyle = '#37474F';
+            ctx.fillRect(-8, -0, 16, 3);
+            ctx.fillStyle = '#607D8B';
+            ctx.fillRect(-8, -4, 16, 2);
+            // Bipod legs at front
+            ctx.strokeStyle = '#37474F';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(-4, 6); ctx.lineTo(-7, 11); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(4, 6); ctx.lineTo(7, 11); ctx.stroke();
+            // Long barrel extending far forward
             ctx.fillStyle = '#212121';
-            ctx.fillRect(-2, -22, 4, 12);
-            // Scope glint
+            ctx.fillRect(-2.5, -18, 5, 18);
+            ctx.fillStyle = '#424242';
+            ctx.fillRect(-1.5, -18, 3, 16);
+            // Barrel tip
+            ctx.fillStyle = '#111';
+            ctx.fillRect(-3, -19, 6, 3);
+            // Large scope on top
+            ctx.fillStyle = '#37474F';
+            ctx.fillRect(-2, -15, 8, 5);
+            ctx.fillStyle = '#263238';
+            ctx.fillRect(-1.5, -14.5, 7, 4);
+            // Scope lens glint (blue glow)
             ctx.fillStyle = '#64B5F6';
+            ctx.shadowColor = '#64B5F6';
+            ctx.shadowBlur = 5;
             ctx.beginPath();
-            ctx.arc(0, -20, 3, 0, Math.PI * 2);
+            ctx.arc(0, -17, 2.2, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
 
         } else if (this.typeKey === 'nuke') {
             // Nuke Silo: dome with radiation symbol
@@ -347,6 +440,19 @@ class Tower {
             grad.addColorStop(1, '#F44336');
             ctx.fillStyle = grad;
             ctx.fillRect(bx, by, barW * this.nukeCharge, barH);
+
+            // Countdown text
+            if (this.cooldown > 0) {
+                ctx.fillStyle = 'rgba(255,200,50,0.9)';
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('☢ ' + this.cooldown.toFixed(1) + 's', x, by - 3);
+            } else {
+                ctx.fillStyle = 'rgba(255,50,50,0.85)';
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('READY', x, by - 3);
+            }
         }
     }
 

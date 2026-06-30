@@ -11,6 +11,7 @@ let DECORATIONS = [];
 let DECO_MAP = {};
 let GRID_DATA = [];
 let WAYPOINTS = [];
+let SMOOTH_PATH_POINTS = []; // Simplified waypoints for smooth rendering
 let SPAWN_POS = { x: 0, y: 0 };
 let BASE_POS = { x: 0, y: 0 };
 let ACTIVE_MAP_ID = 'crossroads';
@@ -59,6 +60,203 @@ function canPlaceTower(col, row, existingTowers) {
     if (GRID_DATA[row][col] !== CELL_BUILDABLE) return false;
     for (const t of existingTowers) { if (t.col === col && t.row === row) return false; }
     return true;
+}
+
+// ============================================================
+// Smooth Path Renderer — draws continuous rounded ribbon instead
+// of individual square tiles. Called by all maps.
+// ============================================================
+
+// Default path colors per terrain type — maps can override
+const PATH_COLORS = {
+    dirt:      { fill: '#B8956A', edge: '#8B6F4E', center: '#C4A97A' },
+    ice:       { fill: '#6B8092', edge: '#4A5F70', center: '#8BA0B0' },
+    cobble:    { fill: '#9E948A', edge: '#6E645A', center: '#B0A69C' },
+    sand:      { fill: '#C9AD8A', edge: '#9E8260', center: '#D8C0A0' },
+    lava:      { fill: '#2A2A2A', edge: '#1A1A1A', center: '#3A3A3A' },
+    lunar:     { fill: '#9E9E9E', edge: '#6E6E6E', center: '#B0B0B0' },
+    jungle:    { fill: '#8B7D5E', edge: '#5E5038', center: '#A09070' },
+    coastal:   { fill: '#C4A46C', edge: '#8B6F4E', center: '#D4B87C' },
+};
+
+function renderSmoothPath(ctx, pathType, cornerRadius) {
+    const wp = (typeof SMOOTH_PATH_POINTS !== 'undefined' && SMOOTH_PATH_POINTS.length >= 2)
+        ? SMOOTH_PATH_POINTS : WAYPOINTS;
+    if (!wp || wp.length < 2) return;
+
+    const colors = PATH_COLORS[pathType] || PATH_COLORS.dirt;
+    const r = cornerRadius || 12;
+    const pathWidth = CELL_SIZE * 0.76; // ~30px — leaves terrain shoulder
+    const halfW = pathWidth / 2;
+
+    // ---- Draw path drop-shadow (depth effect) ----
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    _buildPathGeometry(ctx, wp, halfW, r, 3, 3); // offset shadow
+    ctx.fill();
+    ctx.restore();
+
+    // ---- Draw path base fill ----
+    ctx.save();
+    ctx.fillStyle = colors.fill;
+    ctx.beginPath();
+    _buildPathGeometry(ctx, wp, halfW, r, 0, 0);
+    ctx.fill();
+
+    // ---- Path edge stroke ----
+    ctx.strokeStyle = colors.edge;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // ---- Lighter center stripe (worn path look) ----
+    ctx.strokeStyle = colors.center;
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = halfW * 0.5;
+    ctx.beginPath();
+    _buildPathGeometry(ctx, wp, halfW * 0.25, r, 0, 0);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // ---- Subtle inner shadow on edges ----
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    _buildPathGeometry(ctx, wp, halfW - 1, r, 0, 0);
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Build the geometric path outline for the smooth ribbon.
+// offsetX/Y shifts the entire path (for drop shadow).
+function _buildPathGeometry(ctx, waypoints, halfWidth, cornerRadius, offsetX, offsetY) {
+    if (waypoints.length < 2) return;
+
+    const ox = offsetX || 0;
+    const oy = offsetY || 0;
+
+    // Compute offset normals for each waypoint to build a thick path outline
+    const leftPts = [];
+    const rightPts = [];
+
+    for (let i = 0; i < waypoints.length; i++) {
+        let nx, ny;
+        if (i === 0) {
+            // First point: use direction to next point
+            const dx = waypoints[i + 1].x - waypoints[i].x;
+            const dy = waypoints[i + 1].y - waypoints[i].y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            nx = -dy / len;
+            ny = dx / len;
+        } else if (i === waypoints.length - 1) {
+            // Last point: use direction from previous point
+            const dx = waypoints[i].x - waypoints[i - 1].x;
+            const dy = waypoints[i].y - waypoints[i - 1].y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            nx = -dy / len;
+            ny = dx / len;
+        } else {
+            // Interior point: average of incoming and outgoing normals
+            const dx1 = waypoints[i].x - waypoints[i - 1].x;
+            const dy1 = waypoints[i].y - waypoints[i - 1].y;
+            const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 1;
+            const nx1 = -dy1 / len1;
+            const ny1 = dx1 / len1;
+
+            const dx2 = waypoints[i + 1].x - waypoints[i].x;
+            const dy2 = waypoints[i + 1].y - waypoints[i].y;
+            const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+            const nx2 = -dy2 / len2;
+            const ny2 = dx2 / len2;
+
+            nx = (nx1 + nx2) / 2;
+            ny = (ny1 + ny2) / 2;
+            const nlen = Math.sqrt(nx * nx + ny * ny) || 1;
+            nx /= nlen;
+            ny /= nlen;
+        }
+        leftPts.push({ x: waypoints[i].x + nx * halfWidth + ox, y: waypoints[i].y + ny * halfWidth + oy });
+        rightPts.push({ x: waypoints[i].x - nx * halfWidth + ox, y: waypoints[i].y - ny * halfWidth + oy });
+    }
+
+    // Build left side of the path (forward), closing with right side (backward)
+    ctx.moveTo(leftPts[0].x, leftPts[0].y);
+
+    for (let i = 1; i < leftPts.length; i++) {
+        // Detect if we're at a turn — use arcTo for smooth corners
+        if (i > 0 && i < leftPts.length - 1) {
+            const prev = leftPts[i - 1];
+            const curr = leftPts[i];
+            const next = leftPts[i + 1];
+            // Check if direction changes significantly
+            const d1x = curr.x - prev.x, d1y = curr.y - prev.y;
+            const d2x = next.x - curr.x, d2y = next.y - curr.y;
+            const dot = (d1x * d2x + d1y * d2y) / (Math.sqrt(d1x*d1x+d1y*d1y) * Math.sqrt(d2x*d2x+d2y*d2y) + 0.001);
+            if (dot < 0.99) {
+                ctx.arcTo(curr.x, curr.y, next.x, next.y, cornerRadius);
+                continue;
+            }
+        }
+        ctx.lineTo(leftPts[i].x, leftPts[i].y);
+    }
+
+    // Connect to right side (end cap)
+    const lastL = leftPts[leftPts.length - 1];
+    const lastR = rightPts[rightPts.length - 1];
+    ctx.lineTo(lastR.x, lastR.y);
+
+    // Build right side (backward)
+    for (let i = rightPts.length - 2; i >= 0; i--) {
+        if (i > 0 && i < rightPts.length - 1) {
+            const prev = rightPts[i + 1];
+            const curr = rightPts[i];
+            const next = rightPts[i - 1];
+            const d1x = curr.x - prev.x, d1y = curr.y - prev.y;
+            const d2x = next.x - curr.x, d2y = next.y - curr.y;
+            const dot = (d1x * d2x + d1y * d2y) / (Math.sqrt(d1x*d1x+d1y*d1y) * Math.sqrt(d2x*d2x+d2y*d2y) + 0.001);
+            if (dot < 0.99) {
+                ctx.arcTo(curr.x, curr.y, next.x, next.y, cornerRadius);
+                continue;
+            }
+        }
+        ctx.lineTo(rightPts[i].x, rightPts[i].y);
+    }
+
+    ctx.closePath();
+}
+
+// ============================================================
+// Waypoint Simplifier — removes redundant collinear waypoints
+// to create longer, more natural path segments
+// ============================================================
+
+function simplifyWaypoints(waypoints) {
+    if (!waypoints || waypoints.length <= 2) return waypoints;
+
+    const simplified = [waypoints[0]];
+    for (let i = 1; i < waypoints.length - 1; i++) {
+        const prev = waypoints[i - 1];
+        const curr = waypoints[i];
+        const next = waypoints[i + 1];
+
+        // Check if curr is collinear with prev and next
+        const dx1 = curr.x - prev.x;
+        const dy1 = curr.y - prev.y;
+        const dx2 = next.x - curr.x;
+        const dy2 = next.y - curr.y;
+
+        // Cross product near zero = collinear
+        const cross = dx1 * dy2 - dy1 * dx2;
+        if (Math.abs(cross) > 0.01) {
+            // Direction changes — keep this waypoint
+            simplified.push(curr);
+        }
+        // If collinear, skip (remove redundant waypoint)
+    }
+    simplified.push(waypoints[waypoints.length - 1]);
+    return simplified;
 }
 
 // ============================================================
@@ -401,6 +599,18 @@ function drawCamel(ctx, x, y, size, seed) {
 }
 
 // ============================================================
+// Directional Lighting Helpers (2.5D enhancement)
+// ============================================================
+
+function drawDirectionalShadow(ctx, x, y, w, h, alpha) {
+    const a = alpha || 0.2;
+    ctx.fillStyle = `rgba(0,0,0,${a})`;
+    ctx.beginPath();
+    ctx.ellipse(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y, w / 2, h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// ============================================================
 // MAP_DEFS Registry — populated by map files in js/maps/
 // ============================================================
 
@@ -434,6 +644,21 @@ function setActiveMap(mapId) {
     BRIDGE_CELLS = m.getBridgeCells ? m.getBridgeCells(PATH_CELLS, CREEK_CELLS) : [];
 
     WAYPOINTS = cellsToWaypoints(PATH_CELLS);
+
+    // Simplify waypoints for smoother rendering (removes redundant collinear points)
+    // Store simplified version for the smooth path renderer
+    SMOOTH_PATH_POINTS = simplifyWaypoints(WAYPOINTS);
+
+    // Precompute cumulative distance to end for each waypoint (used by enemy targeting)
+    let cumulative = 0;
+    WAYPOINTS[WAYPOINTS.length - 1]._distToEnd = 0;
+    for (let i = WAYPOINTS.length - 2; i >= 0; i--) {
+        const dx = WAYPOINTS[i + 1].x - WAYPOINTS[i].x;
+        const dy = WAYPOINTS[i + 1].y - WAYPOINTS[i].y;
+        cumulative += Math.sqrt(dx * dx + dy * dy);
+        WAYPOINTS[i]._distToEnd = cumulative;
+    }
+
     SPAWN_POS = WAYPOINTS[0];
     BASE_POS = WAYPOINTS[WAYPOINTS.length - 1];
 

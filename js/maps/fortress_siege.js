@@ -5,7 +5,7 @@ MAP_DEFS.fortress_siege = {
 
     pathCells: [
         { c: 19, r: 1 }, { c: 18, r: 1 }, { c: 17, r: 1 }, { c: 16, r: 1 }, { c: 15, r: 1 },
-        { c: 14, r: 1 }, { c: 13, r: 1 }, { c: 12, r: 1 }, { c: 11, r: 1 }, { c: 10, r: 1 },
+        { c: 14, r: 1 }, { c: 13, r: 1 }, { c: 12, r: 1 }, { c: 12, r: 2 }, { c: 10, r: 1 },
         { c: 9, r: 1 }, { c: 8, r: 1 }, { c: 7, r: 1 }, { c: 6, r: 1 }, { c: 5, r: 1 },
         { c: 4, r: 1 }, { c: 3, r: 1 },
         { c: 3, r: 2 }, { c: 3, r: 3 }, { c: 3, r: 4 },
@@ -60,18 +60,17 @@ MAP_DEFS.fortress_siege = {
         for (let row = 0; row < GRID_ROWS; row++) {
             for (let col = 0; col < GRID_COLS; col++) {
                 const x = col*CELL_SIZE, y = row*CELL_SIZE, type = GRID_DATA[row][col], cx = x+CELL_SIZE/2, cy = y+CELL_SIZE/2;
-                if (type === CELL_PATH) {
-                    SpriteAtlas.drawTile(ctx, 'cobble', row+col, x, y);
-                } else if (type === CELL_BLOCKED) {
-                    SpriteAtlas.drawTile(ctx, 'fort_grass', row+col, x, y);
+                if (type === CELL_BLOCKED) {
+                    SpriteAtlas.drawTile(ctx, 'fort_grass_3d', row+col, x, y);
                     const dt = DECO_MAP[row+','+col] || BLOCKED_TREE;
                     SpriteAtlas.drawDeco(ctx, dt, row*100+col, cx, cy+2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'fort_grass', row+col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'fort_grass_3d', row+col, x, y);
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        // Smooth rounded path ribbon
+        renderSmoothPath(ctx, 'cobble', 12);
         // Birds
         [{x:120,y:100},{x:450,y:140},{x:700,y:102},{x:180,y:225},{x:720,y:228},{x:500,y:250},{x:200,y:345},{x:700,y:348},{x:350,y:372},{x:120,y:465},{x:680,y:468},{x:400,y:495}].forEach(bp=>{if(!isOnPath(bp.y))drawBird(ctx,bp.x,bp.y,14,Math.floor(bp.x+bp.y));});
         // Rabbits

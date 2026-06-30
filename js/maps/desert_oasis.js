@@ -57,14 +57,12 @@ MAP_DEFS.desert_oasis = {
         for (let row = 0; row < GRID_ROWS; row++) {
             for (let col = 0; col < GRID_COLS; col++) {
                 const x = col*CELL_SIZE, y = row*CELL_SIZE, type = GRID_DATA[row][col], cx = x+CELL_SIZE/2, cy = y+CELL_SIZE/2;
-                if (type === CELL_PATH) {
-                    SpriteAtlas.drawTile(ctx, 'path', row+col, x, y);
-                } else if (type === CELL_BLOCKED) {
-                    SpriteAtlas.drawTile(ctx, 'sand', row+col, x, y);
+                if (type === CELL_BLOCKED) {
+                    SpriteAtlas.drawTile(ctx, 'sand_3d', row+col, x, y);
                     const dt = DECO_MAP[row+','+col] || BLOCKED_TREE;
                     SpriteAtlas.drawDeco(ctx, dt, row*100+col, cx, cy+2, 38);
                 } else {
-                    SpriteAtlas.drawTile(ctx, 'sand', row+col, x, y);
+                    SpriteAtlas.drawTile(ctx, 'sand_3d', row+col, x, y);
                     // Sand dune ripples on buildable cells
                     const r = seededRand(row*1000+col);
                     if (r > 0.7) {
@@ -72,9 +70,10 @@ MAP_DEFS.desert_oasis = {
                         ctx.beginPath(); ctx.moveTo(x+3,cy); ctx.lineTo(x+CELL_SIZE-3,cy+seededRand(row*77+col)*3-1); ctx.stroke();
                     }
                 }
-                ctx.strokeStyle = 'rgba(0,0,0,0.04)'; ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
             }
         }
+        // Smooth rounded path ribbon
+        renderSmoothPath(ctx, 'sand', 12);
         // Camels
         [{x:600,y:200},{x:180,y:440}].forEach(cp=>drawCamel(ctx,cp.x,cp.y,22,Math.floor(cp.x+cp.y)));
         const sc = PATH_CELLS[0]; drawGate(ctx, sc.c*CELL_SIZE+CELL_SIZE/2, sc.r*CELL_SIZE+CELL_SIZE/2+4, 18);

@@ -52,11 +52,11 @@ MAP_DEFS.frozen_pass = {
         // Terrain
         for(let row=0;row<GRID_ROWS;row++){for(let col=0;col<GRID_COLS;col++){
             const x=col*CELL_SIZE,y=row*CELL_SIZE,type=GRID_DATA[row][col],cx=x+CELL_SIZE/2,cy=y+CELL_SIZE/2;
-            if(type===CELL_PATH){SpriteAtlas.drawTile(ctx,'ice_path',row+col,x,y);}
-            else if(type===CELL_BLOCKED){SpriteAtlas.drawTile(ctx,'snow',row+col,x,y);const dt=DECO_MAP[row+','+col]||BLOCKED_TREE;SpriteAtlas.drawDeco(ctx,dt,row*100+col,cx,cy+2,38);}
-            else{SpriteAtlas.drawTile(ctx,'snow',row+col,x,y);const r=seededRand(row*1000+col);if(r>0.6)drawSnowdrift(ctx,cx,cy+4,CELL_SIZE*0.85,CELL_SIZE*0.45);if(r>0.85)drawIceCrystal(ctx,cx+seededRand(row*99+col)*10-5,cy+seededRand(row*77+col)*8-4,10,row*100+col);}
-            ctx.strokeStyle='rgba(100,120,150,0.08)';ctx.strokeRect(x,y,CELL_SIZE,CELL_SIZE);
+            if(type===CELL_BLOCKED){SpriteAtlas.drawTile(ctx,'snow_3d',row+col,x,y);const dt=DECO_MAP[row+','+col]||BLOCKED_TREE;SpriteAtlas.drawDeco(ctx,dt,row*100+col,cx,cy+2,38);}
+            else{SpriteAtlas.drawTile(ctx,'snow_3d',row+col,x,y);const r=seededRand(row*1000+col);if(r>0.6)drawSnowdrift(ctx,cx,cy+4,CELL_SIZE*0.85,CELL_SIZE*0.45);if(r>0.85)drawIceCrystal(ctx,cx+seededRand(row*99+col)*10-5,cy+seededRand(row*77+col)*8-4,10,row*100+col);}
         }}
+        // Smooth rounded path ribbon
+        renderSmoothPath(ctx, 'ice', 12);
         const sc=PATH_CELLS[0];drawGate(ctx,sc.c*CELL_SIZE+CELL_SIZE/2,sc.r*CELL_SIZE+CELL_SIZE/2+4,18);
         const bc=PATH_CELLS[PATH_CELLS.length-1];drawCastle(ctx,bc.c*CELL_SIZE+CELL_SIZE/2,bc.r*CELL_SIZE+CELL_SIZE/2-2,20);
     },
