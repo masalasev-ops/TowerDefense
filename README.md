@@ -2,15 +2,41 @@
 
 A browser-based tower defense game built with vanilla JavaScript and HTML5 Canvas. Defend your castle across 8 unique maps, unlock new terrain by conquering previous ones, and survive escalating waves of enemies.
 
-## Quick Start
+## How to Run
 
-1. **Clone or download** this repository
-2. **Open `index.html`** in any modern browser — no build step, no dependencies
-3. **Choose a map** (🌳 Crossroads is the first; beat it to unlock more)
-4. **Pick a difficulty** (🟢 Easy / 🟡 Normal / 🔴 Hard)
-5. **Click "Start Game"** — you're defending your castle!
+### Option A — Open directly (easiest)
 
-> 💡 The PWA manifest makes it installable on mobile from the browser.
+1. **Download or clone** this repository
+2. **Double-click `index.html`** — it opens in your default browser
+3. That's it. No server, no build step, no dependencies.
+
+### Option B — Local dev server (recommended for development)
+
+```bash
+# Using Python (included on most systems)
+python -m http.server 8000
+
+# Or using Node.js
+npx serve .
+
+# Then open http://localhost:8000
+```
+
+A local server avoids CORS restrictions and enables the service worker for offline PWA caching.
+
+### Option C — VS Code Live Server
+
+1. Install the **Live Server** extension
+2. Right-click `index.html` → **Open with Live Server**
+
+### Starting a Game
+
+1. **Choose a map** — 🌳 Crossroads is unlocked from the start; beat it to unlock more
+2. **Pick a difficulty** — 🟢 Easy / 🟡 Normal / 🔴 Hard
+3. **Click "Start Game"** — you're defending your castle!
+4. Press **Space** or click **Start Wave** to begin the first wave
+
+> 💡 The PWA manifest makes it installable on mobile from the browser. Works offline once cached.
 
 ## How to Play
 
