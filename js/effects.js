@@ -1,13 +1,51 @@
 // ============================================================
 // Effects — Particle systems, explosions, nuke effects, visuals
 // ============================================================
+//
+// This module provides the complete visual effects pipeline for the game.
+// It includes:
+//
+//   Particle            — Small moving/fading dots used for death explosions,
+//                         hit sparks, smoke residue, and bloom flashes
+//   FloatingText        — Damage numbers and gold pickups that float upward
+//                         and fade out (e.g., "+25g", "17")
+//   NukeFlash           — Full-screen white flash followed by an orange/red
+//                         fade, used for nuclear tower detonations
+//   ShockwaveRing       — Expanding concentric circle(s) that emanate from
+//                         nuke impact point
+//   PlasmaBolt          — Glowing projectile trail (outer glow + bright core
+//                         + white-hot center) between tower and impact point
+//   LightningBolt       — Procedural jagged lightning arc with glow and core
+//                         strokes, randomly branched along the path
+//   TowerUnlockCelebration
+//                       — Animated splash card ("NEW TOWER UNLOCKED!") with
+//                         a particle burst, gold border, tower icon/stats
+//   WavePreviewSplash   — Centered animated card listing upcoming enemy types
+//                         for the next wave, with boss/regular accent colors
+//
+// The activeEffects manager object owns arrays of every effect type and
+// orchestrates their update/render lifecycle. The render order is:
+//   particles → floatingTexts → lightningBolts → shockwaves →
+//   nukeFlashes → wavePreviews → unlockCelebrations
+// ============================================================
 
+/**
+ * Particle — A small dot that moves, fades, and optionally falls with gravity.
+ * Used for death explosions, hit sparks, smoke, and bloom flashes.
+ *
+ * Fields:
+ *   velocityX, velocityY  — Per-second movement deltas
+ *   life, maxLife         — Remaining / total lifetime in seconds
+ *   color                 — CSS color string
+ *   size                  — Base radius in pixels
+ *   gravity               — Downward acceleration (px/s^2)
+ */
 class Particle {
     constructor(x, y, config) {
         this.x = x;
         this.y = y;
-        this.vx = (Math.random() - 0.5) * (config.speed || 60);
-        this.vy = (Math.random() - 0.5) * (config.speed || 60);
+        this.velocityX = (Math.random() - 0.5) * (config.speed || 60);
+        this.velocityY = (Math.random() - 0.5) * (config.speed || 60);
         this.life = config.life || 0.5;
         this.maxLife = this.life;
         this.color = config.color || '#fff';
@@ -15,14 +53,23 @@ class Particle {
         this.gravity = config.gravity || 0;
     }
 
+    /**
+     * Advance the particle by dt seconds.
+     * Applies gravity, updates position from velocity, decreases life.
+     * Returns true while the particle is still alive.
+     */
     update(dt) {
         this.life -= dt;
-        this.vy += this.gravity * dt;
-        this.x += this.vx * dt;
-        this.y += this.vy * dt;
+        this.velocityY += this.gravity * dt;
+        this.x += this.velocityX * dt;
+        this.y += this.velocityY * dt;
         return this.life > 0;
     }
 
+    /**
+     * Draw the particle as a filled circle.
+     * Alpha and size fade with remaining life.
+     */
     render(ctx) {
         const alpha = Math.max(0, this.life / this.maxLife);
         const size = this.size * (0.5 + alpha * 0.5);
@@ -36,6 +83,10 @@ class Particle {
     }
 }
 
+/**
+ * FloatingText — A short piece of text that floats upward and fades out.
+ * Used for damage numbers ("17", "+25g") and status messages.
+ */
 class FloatingText {
     constructor(x, y, text, color = '#FFD600') {
         this.x = x;
@@ -46,12 +97,18 @@ class FloatingText {
         this.maxLife = 0.8;
     }
 
+    /**
+     * Drift upward and decrease life. Returns true while alive.
+     */
     update(dt) {
         this.life -= dt;
         this.y -= 30 * dt; // Float upward
         return this.life > 0;
     }
 
+    /**
+     * Render the text centered at (x, y) with fading alpha.
+     */
     render(ctx) {
         const alpha = Math.max(0, this.life / this.maxLife);
         ctx.globalAlpha = alpha;
@@ -63,11 +120,16 @@ class FloatingText {
     }
 }
 
+/**
+ * NukeFlash — A two-phase full-screen effect.
+ *   Phase 1 ("flash"): bright white overlay that fades in quickly.
+ *   Phase 2 ("fade"):  orange/red overlay that fades out slowly.
+ */
 class NukeFlash {
     constructor() {
         this.life = 1.0;
         this.maxLife = 1.0;
-        this.phase = 'flash'; // flash → fade
+        this.phase = 'flash'; // flash -> fade
     }
 
     update(dt) {
@@ -93,6 +155,10 @@ class NukeFlash {
     }
 }
 
+/**
+ * ShockwaveRing — An expanding concentric circle pair that radiates from a
+ * central point. Used as the secondary effect for nuke detonations.
+ */
 class ShockwaveRing {
     constructor(x, y) {
         this.x = x;
@@ -118,7 +184,7 @@ class ShockwaveRing {
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Second ring
+        // Second (inner) ring
         ctx.strokeStyle = `rgba(255,200,100,${alpha * 0.4})`;
         ctx.lineWidth = 2 * alpha;
         ctx.beginPath();
@@ -127,6 +193,11 @@ class ShockwaveRing {
     }
 }
 
+/**
+ * PlasmaBolt — A three-layer glowing line between a source and target point.
+ * Renders as an outer glow, a bright inner core, and a white-hot center.
+ * Used for the Tesla / plasma tower projectile trail.
+ */
 class PlasmaBolt {
     constructor(from, to) {
         this.from = from;
@@ -152,13 +223,28 @@ class PlasmaBolt {
     }
 }
 
-// Tower unlock celebration — splash card + particles
+/**
+ * TowerUnlockCelebration — An animated splash card announcing a new tower.
+ *
+ * Phases:
+ *   "enter" — card scales up from 30% to 100% over 0.4s
+ *   "hold"  — card stays fully visible
+ *   "exit"  — card fades and scales up slightly over 0.6s
+ *
+ * Visual layers (bottom to top):
+ *   - Gold spark burst radiating from screen center
+ *   - Radial gold glow aura behind the card
+ *   - Dark glass card with gold border and rounded corners
+ *   - "NEW TOWER UNLOCKED!" header
+ *   - Tower icon, name, tier badge, description, cost
+ *   - Recent sparks rendered on top of the card
+ */
 class TowerUnlockCelebration {
     constructor(towerDef) {
         this.towerDef = towerDef;
         this.life = 3.5;         // total display time
         this.maxLife = 3.5;
-        this.phase = 'enter';    // enter → hold → exit
+        this.phase = 'enter';    // enter -> hold -> exit
         this.phaseTimer = 0;
         this.cardY = GAME_HEIGHT / 2;
         // Spawn initial spark burst
@@ -185,11 +271,11 @@ class TowerUnlockCelebration {
         else if (this.life < 0.6) this.phase = 'exit';
         else this.phase = 'hold';
         // Update sparks
-        for (const s of this._sparks) {
-            s.life -= dt;
-            s.x += s.vx * dt;
-            s.y += s.vy * dt;
-            s.vy += 30 * dt; // gravity
+        for (const sparkParticle of this._sparks) {
+            sparkParticle.life -= dt;
+            sparkParticle.x += sparkParticle.vx * dt;
+            sparkParticle.y += sparkParticle.vy * dt;
+            sparkParticle.vy += 30 * dt; // gravity
         }
         return this.life > 0;
     }
@@ -200,11 +286,11 @@ class TowerUnlockCelebration {
         let cardAlpha, cardScale;
 
         if (this.phase === 'enter') {
-            const t = this.phaseTimer / 0.4; // 0→1 over 0.4s
+            const t = this.phaseTimer / 0.4; // 0->1 over 0.4s
             cardAlpha = Math.min(1, t * 3);
             cardScale = 0.3 + t * 0.7;
         } else if (this.phase === 'exit') {
-            const t = this.life / 0.6; // 1→0 over 0.6s
+            const t = this.life / 0.6; // 1->0 over 0.6s
             cardAlpha = t;
             cardScale = 0.8 + t * 0.2;
         } else {
@@ -213,13 +299,13 @@ class TowerUnlockCelebration {
         }
 
         // Render sparks behind card
-        for (const s of this._sparks) {
-            if (s.life <= 0) continue;
-            const sa = Math.max(0, s.life / s.maxLife);
-            ctx.fillStyle = s.color;
+        for (const sparkParticle of this._sparks) {
+            if (sparkParticle.life <= 0) continue;
+            const sa = Math.max(0, sparkParticle.life / sparkParticle.maxLife);
+            ctx.fillStyle = sparkParticle.color;
             ctx.globalAlpha = sa * cardAlpha;
             ctx.beginPath();
-            ctx.arc(s.x, s.y, s.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
+            ctx.arc(sparkParticle.x, sparkParticle.y, sparkParticle.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -303,20 +389,35 @@ class TowerUnlockCelebration {
 
         // Render sparks on top (recent ones)
         ctx.globalAlpha = cardAlpha * 0.6;
-        for (const s of this._sparks) {
-            if (s.life <= 0 || s.life > s.maxLife * 0.3) continue;
-            const sa = s.life / (s.maxLife * 0.3);
+        for (const sparkParticle of this._sparks) {
+            if (sparkParticle.life <= 0 || sparkParticle.life > sparkParticle.maxLife * 0.3) continue;
+            const sa = sparkParticle.life / (sparkParticle.maxLife * 0.3);
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(s.x, s.y, s.size * 0.5 * sa, 0, Math.PI * 2);
+            ctx.arc(sparkParticle.x, sparkParticle.y, sparkParticle.size * 0.5 * sa, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
 }
 
-// Wave preview splash — centered animated card showing upcoming enemy types
-// All rendering is wrapped in save/restore to prevent canvas state corruption
+/**
+ * WavePreviewSplash — A centered animated card showing upcoming enemy types.
+ *
+ * Phases:
+ *   "enter" — card scales up from 40% to 100% over 0.35s
+ *   "hold"  — card stays fully visible
+ *   "exit"  — card fades and scales up slightly over 0.5s
+ *
+ * Features:
+ *   - Subtle particle burst behind card
+ *   - Radial glow aura (color changes for boss waves)
+ *   - Dark glass card with accent-colored border
+ *   - "WAVE N INCOMING" header
+ *   - Enemy type icons with labels in a horizontal row
+ *
+ * All rendering is wrapped in save/restore to prevent canvas state corruption.
+ */
 class WavePreviewSplash {
     constructor(waveNum, enemyTypes) {
         this.waveNum = waveNum;
@@ -349,11 +450,11 @@ class WavePreviewSplash {
         if (this.phaseTimer < 0.35) this.phase = 'enter';
         else if (this.life < 0.5) this.phase = 'exit';
         else this.phase = 'hold';
-        for (const s of this._sparks) {
-            s.life -= dt;
-            s.x += s.vx * dt;
-            s.y += s.vy * dt;
-            s.vy += 25 * dt;
+        for (const sparkParticle of this._sparks) {
+            sparkParticle.life -= dt;
+            sparkParticle.x += sparkParticle.vx * dt;
+            sparkParticle.y += sparkParticle.vy * dt;
+            sparkParticle.vy += 25 * dt;
         }
         return this.life > 0;
     }
@@ -378,13 +479,13 @@ class WavePreviewSplash {
 
         // Sparks behind card
         ctx.save();
-        for (const s of this._sparks) {
-            if (s.life <= 0) continue;
-            const sa = Math.max(0, s.life / s.maxLife);
+        for (const sparkParticle of this._sparks) {
+            if (sparkParticle.life <= 0) continue;
+            const sa = Math.max(0, sparkParticle.life / sparkParticle.maxLife);
             ctx.globalAlpha = sa * cardAlpha;
-            ctx.fillStyle = s.color;
+            ctx.fillStyle = sparkParticle.color;
             ctx.beginPath();
-            ctx.arc(s.x, s.y, s.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
+            ctx.arc(sparkParticle.x, sparkParticle.y, sparkParticle.size * (0.3 + sa * 0.7), 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();
@@ -483,6 +584,11 @@ class WavePreviewSplash {
     }
 }
 
+/**
+ * LightningBolt — A procedurally-generated jagged lightning arc between two
+ * points. Segments are randomized on creation to create a natural fork.
+ * Renders with a yellow glow stroke and a bright white core stroke.
+ */
 class LightningBolt {
     constructor(from, to) {
         this.from = from;
@@ -492,6 +598,11 @@ class LightningBolt {
         this.segments = this._generateSegments();
     }
 
+    /**
+     * Build the list of intermediate points that form the forked arc.
+     * Each segment is ~15px long with a random perpendicular offset of up
+     * to 20px to create the jagged look.
+     */
     _generateSegments() {
         const points = [this.from];
         const dx = this.to.x - this.from.x;
@@ -543,7 +654,21 @@ class LightningBolt {
     }
 }
 
-// Effects manager
+// ==================================================================
+// activeEffects — The global effects manager
+// ==================================================================
+//
+// Owns all active visual effects and orchestrates their lifecycle.
+//
+// Render order (bottom to top):
+//   1. particles          — death explosions, hit sparks, smoke
+//   2. floatingTexts      — damage numbers, gold pickups
+//   3. lightningBolts     — lightning arcs and plasma bolts
+//   4. shockwaves         — expanding concentric rings
+//   5. nukeFlashes        — full-screen white/orange flash
+//   6. wavePreviews       — wave preview splash card
+//   7. unlockCelebrations — tower unlock celebration card
+// ==================================================================
 const activeEffects = {
     particles: [],
     floatingTexts: [],
@@ -553,29 +678,38 @@ const activeEffects = {
     unlockCelebrations: [],
     wavePreviews: [],
 
+    /**
+     * Advance all effects by dt seconds. Filters out dead effects.
+     */
     update(dt) {
-        this.particles = this.particles.filter(p => p.update(dt));
-        this.floatingTexts = this.floatingTexts.filter(t => t.update(dt));
-        this.nukeFlashes = this.nukeFlashes.filter(f => f.update(dt));
-        this.shockwaves = this.shockwaves.filter(s => s.update(dt));
-        this.lightningBolts = this.lightningBolts.filter(l => l.update(dt));
+        this.particles = this.particles.filter(particle => particle.update(dt));
+        this.floatingTexts = this.floatingTexts.filter(textElement => textElement.update(dt));
+        this.nukeFlashes = this.nukeFlashes.filter(flashEffect => flashEffect.update(dt));
+        this.shockwaves = this.shockwaves.filter(sparkParticle => sparkParticle.update(dt));
+        this.lightningBolts = this.lightningBolts.filter(lightningBolt => lightningBolt.update(dt));
         this.unlockCelebrations = this.unlockCelebrations.filter(c => c.update(dt));
         this.wavePreviews = this.wavePreviews.filter(w => w.update(dt));
     },
 
+    /**
+     * Render all effects in the defined draw order.
+     */
     render(ctx) {
-        for (const p of this.particles) p.render(ctx);
-        for (const t of this.floatingTexts) t.render(ctx);
-        for (const l of this.lightningBolts) l.render(ctx);
-        for (const s of this.shockwaves) s.render(ctx);
+        for (const particle of this.particles) particle.render(ctx);
+        for (const textElement of this.floatingTexts) textElement.render(ctx);
+        for (const lightningBolt of this.lightningBolts) lightningBolt.render(ctx);
+        for (const sparkParticle of this.shockwaves) sparkParticle.render(ctx);
         // Nuke flashes render on top
-        for (const f of this.nukeFlashes) f.render(ctx);
+        for (const flashEffect of this.nukeFlashes) flashEffect.render(ctx);
         // Wave preview splashes render above celebrations
         for (const w of this.wavePreviews) w.render(ctx);
         // Tower unlock celebrations render on top of everything
         for (const c of this.unlockCelebrations) c.render(ctx);
     },
 
+    /**
+     * Clear all effects (e.g., on game restart).
+     */
     clear() {
         this.particles = [];
         this.floatingTexts = [];
@@ -586,12 +720,18 @@ const activeEffects = {
         this.wavePreviews = [];
     },
 
+    /**
+     * Spawn a tower unlock celebration card (only one at a time).
+     */
     spawnUnlockCelebration(towerDef) {
         // Don't stack multiple celebrations
         if (this.unlockCelebrations.length > 0) return;
         this.unlockCelebrations.push(new TowerUnlockCelebration(towerDef));
     },
 
+    /**
+     * Spawn a wave preview splash (delegated to ui.js for CSS-based display).
+     */
     spawnWavePreview(waveNum, enemyTypes) {
         // Delegated to ui.js for CSS-based splash (avoids canvas state issues)
         if (typeof window._showWaveSplash === 'function') {
@@ -599,7 +739,19 @@ const activeEffects = {
         }
     },
 
-    // Helper to spawn death explosion (multi-phase: bloom -> particles -> smoke)
+    // ================================================================
+    // spawnEnemyDeath — Multi-phase death explosion
+    // ================================================================
+    //
+    // Phase 1 — Bloom flash:  4 large white particles that expand and
+    //           fade very quickly (0.1-0.25s).
+    // Phase 2 — Explosion:    N colored particles (10 for normal, 35 for
+    //           boss) that burst outward with gravity.
+    // Phase 3 — Smoke:         3 dark puffs that float upward with
+    //           negative gravity, representing residue.
+    //
+    // A floating gold text ("+Ng") is also spawned at the death location.
+    // ================================================================
     spawnEnemyDeath(enemy) {
         const numParticles = enemy.typeKey === 'boss' ? 35 : 10;
 
@@ -647,7 +799,10 @@ const activeEffects = {
         ));
     },
 
-    // Helper for projectile hit (enhanced with ring + streaks)
+    /**
+     * spawnHitSpark — Small impact burst at a point.
+     * Spawns 6 quick-fading spark particles plus a small white ring particle.
+     */
     spawnHitSpark(x, y, color = '#FFEB3B') {
         // Spark particles
         for (let i = 0; i < 6; i++) {
@@ -664,7 +819,10 @@ const activeEffects = {
         }));
     },
 
-    // Helper for explosion (enhanced with flash + smoke ring + debris)
+    /**
+     * spawnExplosion — Larger area burst with flash center, colored debris,
+     * and a dark smoke ring that expands outward.
+     */
     spawnExplosion(x, y, radius) {
         const numParticles = Math.floor(radius / 2.5);
         // Flash center
@@ -706,25 +864,56 @@ const activeEffects = {
         }
     },
 
-    // Nuke effects
+    /**
+     * spawnNukeFlash — Full-screen nuke flash + centered shockwave ring.
+     */
     spawnNukeFlash() {
         this.nukeFlashes.push(new NukeFlash());
         this.shockwaves.push(new ShockwaveRing(GAME_WIDTH / 2, GAME_HEIGHT / 2));
     },
 
+    /**
+     * Spawn a jagged lightning bolt between two points.
+     */
     spawnLightningBolt(from, to) {
         this.lightningBolts.push(new LightningBolt(from, to));
     },
 
+    /**
+     * Spawn a plasma bolt (glowing straight line) between two points.
+     */
     spawnPlasmaBolt(from, to) {
         this.lightningBolts.push(new PlasmaBolt(from, to));
     },
 
+    /**
+     * Spawn floating red damage text at a position.
+     */
     spawnDamageText(x, y, damage) {
         this.floatingTexts.push(new FloatingText(x, y, `${Math.floor(damage)}`, '#FF5252'));
     },
 
-    // Process impact effects from projectiles
+    // ================================================================
+    // processImpactEffects — Effect dispatch table
+    // ================================================================
+    //
+    // Converts projectile hit data (from tower damage callbacks) into
+    // appropriate visual effects. Each effect object should have:
+    //   type  — string identifying the effect kind
+    //   pos   — { x, y } impact point
+    //   damage, radius, from  — optional parameter fields
+    //
+    // Supported effect types:
+    //   hit          — Basic impact sparks + damage number
+    //   explosion    — Area burst with flash, debris, and smoke ring
+    //   spark        — Quick spark particles only
+    //   lightning    — Sparks + damage + jagged bolt from source
+    //   plasmaBeam   — Sparks + damage + plasma bolt from source
+    //   nukeHit      — Damage text only (flash/shockwave handled separately)
+    //   shieldBreak  — Blue sparks + "Shield Down!" text + sound
+    //   nukeFlash    — Full-screen flash + shockwave ring
+    //   nukeShockwave— No-op (handled by nukeFlash)
+    // ================================================================
     processImpactEffects(effects) {
         if (!effects) return;
 

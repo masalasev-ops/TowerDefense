@@ -1,28 +1,104 @@
 /* ============================================================
    Tower Defense — Professional UI Styles
+   ============================================================
+
+   DESIGN SYSTEM
+   ------------
+   This stylesheet implements a dark-themed "glass-morphism"
+   UI on top of the game canvas. The design language is:
+     - Deep navy backgrounds (--bg-deep: #0a0e1a)
+     - Frosted glass panels using backdrop-filter: blur()
+     - Accent color #e94560 (vibrant red-pink) for CTAs and highlights
+     - Gold (#ffd700) for currency/tower cost display
+     - Subtle borders with rgba alpha for edge definition
+     - Layered box-shadows for depth (button press, hover lift)
+
+   GLASS-MORPHISM PATTERN
+   ----------------------
+   The glass effect is achieved by combining:
+     1. background: rgba(r, g, b, a)  — semi-transparent base
+     2. backdrop-filter: blur(Npx)    — blurs content behind the element
+     3. border: 1px solid rgba(...)   — subtle translucent edge
+     4. box-shadow: layered shadows   — depth and glow
+
+   FILE STRUCTURE
+   -------------
+   Lines     Section
+   -----     -------
+    ~ 24    CSS Custom Properties (design tokens)
+    ~ 38    Base Reset & Body
+    ~ 18    Game Container
+    ~ 38    HUD Bar
+    ~ 20    HUD Items (label, value, spacer)
+    ~ 24    Repair Info & Button
+    ~ 12    Wave Preview
+    ~ 22    Pause Button
+    ~ 24    Mute Button
+    ~  8    Keyboard Hint
+    ~ 22    Game Over Stats Detail
+    ~ 50    Wave Button
+    ~ 30    Speed Controls
+    ~ 26    Canvas Wrapper
+    ~ 70    Tower Selection Panel
+    ~ 70    Tower Info Panel
+    ~ 24    Game Setup Screen
+    ~ 50    Map Cards
+    ~ 40    Difficulty Buttons
+    ~ 40    Start/Continue Buttons
+    ~ 80    Game Over Overlay
+    ~ 16    Wave Splash Animations
+    ~ 12    Instructions
+    ~ 70    Responsive Breakpoints
    ============================================================ */
 
+/* ============================================================
+   SECTION 1: CSS Custom Properties (Design Tokens)
+   ============================================================
+   All colors, sizes, and effects are centralized in :root so
+   the theme can be adjusted from one place. This follows the
+   same philosophy as constants.js for the game engine.
+   ============================================================ */
 :root {
-    --bg-deep: #0a0e1a;
-    --bg-panel: rgba(15, 20, 45, 0.85);
-    --bg-panel-solid: #0f142d;
-    --border-subtle: rgba(255,255,255,0.08);
-    --border-glow: rgba(233,69,96,0.5);
-    --accent: #e94560;
-    --accent-glow: rgba(233,69,96,0.4);
-    --gold: #ffd700;
-    --text-primary: #e8e8f0;
-    --text-secondary: #8899aa;
-    --text-muted: #556677;
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --shadow-lg: 0 8px 40px rgba(0,0,0,0.5);
-    --glass-bg: rgba(15, 24, 50, 0.75);
-    --glass-border: rgba(255,255,255,0.1);
-    --glass-blur: 12px;
+    /* --- Base colors --- */
+    --bg-deep: #0a0e1a;                /* Deepest background (body) */
+    --bg-panel: rgba(15, 20, 45, 0.85); /* Semi-transparent panel background */
+    --bg-panel-solid: #0f142d;         /* Solid panel background (no transparency) */
+
+    /* --- Borders and outlines --- */
+    --border-subtle: rgba(255,255,255,0.08);  /* Very faint white border */
+    --border-glow: rgba(233,69,96,0.5);       /* Accent-colored glow border */
+
+    /* --- Accent colors --- */
+    --accent: #e94560;                 /* Primary accent (red-pink) for buttons, highlights */
+    --accent-glow: rgba(233,69,96,0.4); /* Glow version of accent for box-shadows */
+    --gold: #ffd700;                   /* Gold for currency display (tower costs, gold count) */
+
+    /* --- Text colors (light-on-dark hierarchy) --- */
+    --text-primary: #e8e8f0;           /* Primary text — nearly white */
+    --text-secondary: #8899aa;         /* Secondary text — muted blue-grey */
+    --text-muted: #556677;             /* Muted text — darkest readable */
+
+    /* --- Border radius scale --- */
+    --radius-sm: 8px;                  /* Small radius (buttons, badges) */
+    --radius-md: 12px;                 /* Medium radius (panels, cards) */
+    --radius-lg: 16px;                 /* Large radius (modals, dialogs) */
+
+    /* --- Shadows --- */
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.5);  /* Large drop shadow for panels */
+
+    /* --- Glass-morphism tokens --- */
+    --glass-bg: rgba(15, 24, 50, 0.75);        /* Frosted glass background */
+    --glass-border: rgba(255,255,255,0.1);      /* Frosted glass border */
+    --glass-blur: 12px;                         /* backdrop-filter blur amount */
 }
 
+/* ============================================================
+   SECTION 2: Base Reset & Body
+   ============================================================
+   Full-viewport dark background with subtle radial gradients
+   (accent red at top, blue at bottom) for depth. Prevents
+   text selection and touch highlight on mobile.
+   ============================================================ */
 * {
     margin: 0;
     padding: 0;
@@ -32,19 +108,26 @@
 html, body {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: hidden;                  /* No page scrolling — game is self-contained */
     background: var(--bg-deep);
+    /* Subtle radial gradients for atmospheric lighting */
     background-image:
         radial-gradient(ellipse at 50% 0%, rgba(233,69,96,0.08) 0%, transparent 60%),
         radial-gradient(ellipse at 20% 100%, rgba(33,150,243,0.05) 0%, transparent 50%);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: var(--text-primary);
-    user-select: none;
+    user-select: none;                 /* Prevent accidental text selection during gameplay */
     -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent;  /* Remove mobile tap highlight */
 }
 
-/* --- Game Container --- */
+/* ============================================================
+   SECTION 3: Game Container
+   ============================================================
+   Flexbox column centered on the page. Contains the HUD bar,
+   canvas, tower panel, and instructions in a vertical stack.
+   Max-width 860px keeps the layout compact on wide screens.
+   ============================================================ */
 #game-container {
     position: relative;
     display: flex;
@@ -56,10 +139,16 @@ html, body {
     margin: 0 auto;
     padding: 6px;
     gap: 6px;
-    overflow-y: auto;
+    overflow-y: auto;                  /* Allow scroll if content overflows viewport height */
 }
 
-/* --- HUD Bar --- */
+/* ============================================================
+   SECTION 4: HUD Bar
+   ============================================================
+   Glass-morphism bar showing game stats (wave, lives, gold,
+   kills). Uses backdrop-filter for frosted glass effect.
+   flex-shrink: 0 prevents it from collapsing on small screens.
+   ============================================================ */
 #hud {
     display: flex;
     align-items: center;
@@ -68,18 +157,21 @@ html, body {
     max-width: 800px;
     padding: 10px 18px;
     background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    /* --- Glass-morphism core --- */
+    backdrop-filter: blur(var(--glass-blur));         /* Frosts content behind */
+    -webkit-backdrop-filter: blur(var(--glass-blur)); /* Safari support */
     border-radius: var(--radius-md);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--glass-border);            /* Subtle translucent edge */
+    /* Layered shadows: outer drop + inner top highlight for depth */
     box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.04);
     flex-wrap: nowrap;
     justify-content: space-between;
-    z-index: 10;
-    flex-shrink: 0;
+    z-index: 10;                        /* Stays above canvas */
+    flex-shrink: 0;                     /* Don't shrink when container is tight */
     min-height: 52px;
 }
 
+/* --- Individual stat items within the HUD --- */
 .hud-item {
     display: flex;
     align-items: center;
@@ -100,16 +192,18 @@ html, body {
     color: #fff;
     min-width: 30px;
     text-align: center;
-    transition: color 0.3s, text-shadow 0.3s;
-    text-shadow: 0 0 10px rgba(255,255,255,0.15);
+    transition: color 0.3s, text-shadow 0.3s;  /* Smooth stat change animations */
+    text-shadow: 0 0 10px rgba(255,255,255,0.15);  /* Subtle glow */
 }
 
+/* Spacer pushes items apart in the HUD flex layout */
 .hud-spacer {
     flex: 1;
     display: flex;
     justify-content: center;
 }
 
+/* --- Repair Info & Button --- */
 .repair-info {
     font-size: 10px;
     color: var(--text-secondary);
@@ -121,37 +215,46 @@ html, body {
     padding: 5px 14px;
     font-size: 11px;
     font-weight: 700;
-    background: rgba(46,125,50,0.8);
+    background: rgba(46,125,50,0.8);           /* Green, indicating healing */
     color: #fff;
     border: 1px solid rgba(76,175,80,0.4);
     border-radius: 6px;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);                /* Mini glass effect */
 }
 .repair-btn:hover:not(:disabled) {
     background: rgba(56,142,60,0.9);
     transform: scale(1.05);
-    box-shadow: 0 0 12px rgba(76,175,80,0.3);
+    box-shadow: 0 0 12px rgba(76,175,80,0.3);  /* Green glow on hover */
 }
 .repair-btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
 }
 
-/* --- Wave Preview --- */
+/* ============================================================
+   SECTION 5: Wave Preview
+   ============================================================
+   Small italic text below the wave button showing what enemies
+   are coming in the next wave.
+   ============================================================ */
 .wave-preview {
     font-size: 10px;
     color: var(--text-secondary);
     display: block;
     text-align: center;
     margin-top: 2px;
-    min-height: 14px;
+    min-height: 14px;                  /* Reserve space so layout doesn't jump */
     font-style: italic;
 }
 
-/* --- Pause Button --- */
+/* ============================================================
+   SECTION 6: Pause Button
+   ============================================================
+   Toggle button with .paused state that shows accent glow.
+   ============================================================ */
 .pause-btn {
     padding: 5px 12px;
     font-size: 16px;
@@ -171,10 +274,14 @@ html, body {
 .pause-btn.paused {
     background: rgba(233,69,96,0.2);
     border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow);
+    box-shadow: 0 0 10px var(--accent-glow);  /* Accent glow when paused */
 }
 
-/* --- Mute Button --- */
+/* ============================================================
+   SECTION 7: Mute Button
+   ============================================================
+   Toggle button for sound. Shows orange glow when muted.
+   ============================================================ */
 .mute-btn {
     padding: 5px 10px;
     font-size: 16px;
@@ -192,12 +299,16 @@ html, body {
     transform: scale(1.08);
 }
 .mute-btn.muted {
-    background: rgba(255,152,0,0.2);
+    background: rgba(255,152,0,0.2);           /* Orange tint for muted state */
     border-color: rgba(255,152,0,0.5);
     opacity: 0.7;
 }
 
-/* --- Keyboard Hint --- */
+/* ============================================================
+   SECTION 8: Keyboard Hint
+   ============================================================
+   Tiny text below buttons showing keyboard shortcuts.
+   ============================================================ */
 .key-hint {
     font-size: 8px;
     opacity: 0.5;
@@ -206,7 +317,12 @@ html, body {
     margin-top: 1px;
 }
 
-/* --- Game Over Stats Detail --- */
+/* ============================================================
+   SECTION 9: Game Over Stats Detail
+   ============================================================
+   Detailed breakdown of game performance shown on the
+   game-over screen (towers built, gold spent, etc.).
+   ============================================================ */
 #game-over-stats-detail {
     font-size: 12px;
     color: var(--text-secondary);
@@ -230,7 +346,15 @@ html, body {
     font-weight: 600;
 }
 
-/* --- Wave Button --- */
+/* ============================================================
+   SECTION 10: Wave Start Button
+   ============================================================
+   Primary action button for starting the next wave. Uses a
+   gradient from accent to a darker shade, with a sweeping
+   shine animation on hover (::after pseudo-element).
+   Has three states: default, disabled, and .active-wave
+   (orange pulse animation while a wave is in progress).
+   ============================================================ */
 .wave-start-btn {
     padding: 9px 22px;
     font-size: 14px;
@@ -248,8 +372,10 @@ html, body {
     text-align: center;
     box-shadow: 0 4px 16px rgba(233,69,96,0.25);
     position: relative;
-    overflow: hidden;
+    overflow: hidden;                   /* Clips the shine animation */
 }
+
+/* Shine sweep: a white gradient that slides across on hover */
 .wave-start-btn::after {
     content: '';
     position: absolute;
@@ -259,17 +385,19 @@ html, body {
     transition: left 0.5s;
 }
 .wave-start-btn:hover:not(:disabled)::after {
-    left: 100%;
+    left: 100%;                         /* Sweep across from left to right */
 }
 .wave-start-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #ff6b81, #e94560);
-    transform: translateY(-1px);
+    transform: translateY(-1px);        /* Slight lift on hover */
     box-shadow: 0 6px 24px rgba(233,69,96,0.4);
 }
 .wave-start-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Active wave state: switches to orange and pulses */
 .wave-start-btn.active-wave {
     background: linear-gradient(135deg, #ff9800, #e65100);
     border-color: rgba(255,152,0,0.6);
@@ -278,11 +406,18 @@ html, body {
 }
 
 @keyframes wavePulse {
+    /* Pulsing orange glow to indicate wave in progress */
     0%, 100% { box-shadow: 0 0 16px rgba(255,152,0,0.25); }
     50% { box-shadow: 0 0 32px rgba(255,152,0,0.5); }
 }
 
-/* --- Speed Controls --- */
+/* ============================================================
+   SECTION 11: Speed Controls
+   ============================================================
+   Group of buttons (1x, 2x, 3x) for game speed. Wrapped in a
+   dark container with overflow:hidden for a segmented-control
+   appearance. The .active button gets the accent color.
+   ============================================================ */
 .speed-controls {
     display: flex;
     gap: 2px;
@@ -306,35 +441,49 @@ html, body {
     color: #fff;
 }
 .speed-btn.active {
-    background: var(--accent);
+    background: var(--accent);          /* Active speed highlighted in accent */
     color: #fff;
     box-shadow: 0 0 10px var(--accent-glow);
 }
 
-/* --- Canvas --- */
+/* ============================================================
+   SECTION 12: Canvas Wrapper
+   ============================================================
+   The game canvas sits inside this wrapper which provides the
+   border, rounded corners, and box-shadow. The canvas itself
+   is set to display:block to remove the inline gap, and
+   cursor:crosshair for tower placement.
+   ============================================================ */
 #canvas-wrapper {
     position: relative;
     border-radius: var(--radius-sm);
     overflow: hidden;
     border: 2px solid rgba(255,255,255,0.12);
     box-shadow: 0 4px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
-    line-height: 0;
+    line-height: 0;                     /* Eliminates descender gap below canvas */
     transition: border-color 0.3s;
     flex-shrink: 0;
 }
 #canvas-wrapper:focus-within {
-    border-color: rgba(233,69,96,0.3);
+    border-color: rgba(233,69,96,0.3);  /* Accent border when canvas is focused */
 }
 
 #game-canvas {
     display: block;
     max-width: 100%;
     height: auto;
-    cursor: crosshair;
+    cursor: crosshair;                  /* Indicates tower placement mode */
     image-rendering: auto;
 }
 
-/* --- Tower Selection Panel --- */
+/* ============================================================
+   SECTION 13: Tower Selection Panel
+   ============================================================
+   Horizontal row of tower buttons below the canvas. Each button
+   shows an icon, name, and cost. Uses glass-morphism styling.
+   States: default, hover, .selected (accent glow), .locked
+   (greyed out, not yet unlocked).
+   ============================================================ */
 #tower-panel {
     width: 100%;
     max-width: 800px;
@@ -356,7 +505,7 @@ html, body {
     justify-content: center;
     padding: 6px 4px;
     background: rgba(15, 24, 50, 0.7);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);         /* Glass effect on tower buttons */
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -370,13 +519,15 @@ html, body {
 .tower-btn:hover {
     background: rgba(25, 40, 75, 0.85);
     border-color: rgba(255,255,255,0.2);
-    transform: translateY(-2px);
+    transform: translateY(-2px);        /* Lift on hover */
     box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
+
+/* Locked towers are greyed out and can't be interacted with */
 .tower-btn.locked {
     opacity: 0.35;
     cursor: not-allowed;
-    filter: grayscale(0.8);
+    filter: grayscale(0.8);             /* Desaturate to show locked state */
 }
 .tower-btn.locked:hover {
     transform: none;
@@ -384,12 +535,16 @@ html, body {
     background: rgba(15, 24, 50, 0.7);
     box-shadow: none;
 }
+
+/* Selected tower gets accent border and glow */
 .tower-btn.selected {
     background: rgba(233,69,96,0.15);
     border-color: var(--accent);
     box-shadow: 0 0 20px var(--accent-glow), 0 4px 12px rgba(0,0,0,0.3);
-    transform: translateY(-3px);
+    transform: translateY(-3px);        /* Lift higher when selected */
 }
+
+/* Pulsing accent border ring around selected tower */
 .tower-btn.selected::before {
     content: '';
     position: absolute;
@@ -397,13 +552,16 @@ html, body {
     border-radius: var(--radius-sm);
     border: 2px solid var(--accent);
     animation: selectedGlow 2s infinite;
-    pointer-events: none;
+    pointer-events: none;               /* Don't interfere with clicks */
 }
+
 @keyframes selectedGlow {
+    /* Pulses the accent border opacity to draw attention */
     0%, 100% { opacity: 0.6; }
     50% { opacity: 1; }
 }
 
+/* Tower button sub-elements */
 .tower-btn .tower-icon {
     font-size: 23px;
     margin-bottom: 2px;
@@ -417,19 +575,28 @@ html, body {
 }
 .tower-btn .tower-cost {
     font-size: 11px;
-    color: var(--gold);
+    color: var(--gold);                /* Gold color for cost display */
     font-weight: 700;
     margin-top: 2px;
-    text-shadow: 0 0 6px rgba(255,215,0,0.3);
+    text-shadow: 0 0 6px rgba(255,215,0,0.3);  /* Subtle gold glow */
 }
 
-/* --- Tower Info Panel --- */
+/* ============================================================
+   SECTION 14: Tower Info Panel
+   ============================================================
+   Floating panel that appears when a tower is selected on the
+   map. Shows tower name, level, stats (damage, range, fire rate),
+   and action buttons (upgrade / sell). Animated in with a
+   slide + fade. Positioned absolutely within the canvas wrapper
+   or overlaid on the right side.
+   ============================================================ */
 #tower-info {
     position: absolute;
     top: 50%;
     right: 10px;
     transform: translateY(-50%);
     background: rgba(10, 16, 35, 0.92);
+    /* Heavy glass effect for the floating info panel */
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.15);
@@ -438,13 +605,16 @@ html, body {
     min-width: 210px;
     z-index: 10;
     box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-    animation: panelSlideIn 0.2s ease;
+    animation: panelSlideIn 0.2s ease;   /* Slide in from right */
 }
+
 @keyframes panelSlideIn {
+    /* Slides the info panel in from the right with fade */
     from { opacity: 0; transform: translateY(-50%) translateX(10px); }
     to { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 
+/* Panel header with icon, name, and level badge */
 .tower-info-header {
     display: flex;
     align-items: center;
@@ -465,11 +635,13 @@ html, body {
     font-size: 10px;
     color: var(--gold);
     font-weight: 700;
-    background: rgba(255,215,0,0.12);
+    background: rgba(255,215,0,0.12);     /* Subtle gold background */
     padding: 3px 10px;
     border-radius: 12px;
     border: 1px solid rgba(255,215,0,0.2);
 }
+
+/* Stats grid within the info panel */
 .tower-info-stats {
     font-size: 12px;
     color: var(--text-secondary);
@@ -481,8 +653,10 @@ html, body {
     justify-content: space-between;
 }
 .tower-info-stats b {
-    color: #fff;
+    color: #fff;                         /* Stat values in white */
 }
+
+/* Action buttons at the bottom of the info panel */
 .tower-info-actions {
     display: flex;
     flex-direction: column;
@@ -498,6 +672,8 @@ html, body {
     transition: all 0.25s;
     letter-spacing: 0.3px;
 }
+
+/* Upgrade button — green gradient with matching glow */
 .upgrade-btn {
     background: linear-gradient(135deg, #43A047, #2E7D32);
     color: #fff;
@@ -508,15 +684,19 @@ html, body {
     box-shadow: 0 4px 16px rgba(76,175,80,0.4);
     transform: translateY(-1px);
 }
+
+/* Sell button — muted grey with glass effect */
 .sell-btn {
     background: rgba(96,125,139,0.8);
     color: #fff;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);          /* Subtle glass on sell button */
 }
 .sell-btn:hover {
     background: rgba(120,144,156,0.9);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
+
+/* Max level indicator (shown when tower can't be upgraded further) */
 .max-level {
     color: var(--gold);
     font-weight: 700;
@@ -527,24 +707,34 @@ html, body {
     text-shadow: 0 0 8px rgba(255,215,0,0.3);
 }
 
-/* --- Game Setup Screen --- */
+/* ============================================================
+   SECTION 15: Game Setup Screen
+   ============================================================
+   Full-screen overlay shown before the game starts. Lets the
+   player select a map and difficulty. Uses a fixed position
+   covering the entire viewport with a dark semi-transparent
+   background. Fades in on open.
+   ============================================================ */
 #game-setup-screen {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(8, 10, 25, 0.94);
-    backdrop-filter: blur(8px);
+    background: rgba(8, 10, 25, 0.94);      /* Very dark, nearly opaque */
+    backdrop-filter: blur(8px);              /* Blur game behind the setup screen */
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 200;
+    z-index: 200;                            /* Above everything else */
     animation: fadeIn 0.3s ease;
 }
+
 @keyframes fadeIn {
+    /* Simple opacity fade used for overlays */
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
+/* The actual setup dialog box */
 #setup-box {
     background: linear-gradient(160deg, rgba(20,30,60,0.95), rgba(15,20,40,0.95));
     border: 1px solid rgba(255,255,255,0.12);
@@ -563,7 +753,7 @@ html, body {
     font-weight: 900;
     color: #fff;
     margin-bottom: 4px;
-    text-shadow: 0 2px 12px rgba(233,69,96,0.3);
+    text-shadow: 0 2px 12px rgba(233,69,96,0.3);  /* Accent glow on title */
 }
 .setup-subtitle {
     font-size: 14px;
@@ -583,13 +773,21 @@ html, body {
     text-align: center;
 }
 
-/* Map Cards */
+/* ============================================================
+   SECTION 16: Map Cards
+   ============================================================
+   Horizontal row of selectable cards in the setup screen.
+   Each card shows the map name, icon, and description.
+   States: default, hover (lift), .selected (accent border),
+   .locked (greyed out, dimmed, no hover effects).
+   ============================================================ */
 #map-selection {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
 }
+
 .map-card {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
@@ -600,23 +798,27 @@ html, body {
     width: 142px;
     text-align: center;
     flex-shrink: 0;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);          /* Subtle glass on cards */
 }
 .map-card:hover {
     background: rgba(255,255,255,0.1);
     border-color: rgba(255,255,255,0.25);
-    transform: translateY(-3px);
+    transform: translateY(-3px);         /* Lift on hover */
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
+
+/* Selected map card gets accent glow */
 .map-card.selected {
     background: rgba(233,69,96,0.12);
     border-color: var(--accent);
     box-shadow: 0 0 20px rgba(233,69,96,0.25), 0 4px 16px rgba(0,0,0,0.3);
 }
+
+/* Locked maps are greyed out and can't be interacted with */
 .map-card.locked {
     opacity: 0.4;
     cursor: not-allowed;
-    filter: grayscale(0.6);
+    filter: grayscale(0.6);              /* Desaturate to show locked state */
 }
 .map-card.locked:hover {
     transform: none;
@@ -624,6 +826,7 @@ html, body {
     background: rgba(255,255,255,0.04);
     box-shadow: none;
 }
+
 .map-card .map-icon { font-size: 28px; margin-bottom: 6px; }
 .map-card .map-name {
     font-size: 14px;
@@ -637,13 +840,19 @@ html, body {
     line-height: 1.35;
 }
 
-/* Difficulty Buttons */
+/* ============================================================
+   SECTION 17: Difficulty Buttons
+   ============================================================
+   Row of selectable difficulty cards (Easy / Normal / Hard).
+   Similar styling to map cards but with different dimensions.
+   ============================================================ */
 #difficulty-selection {
     display: flex;
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
 }
+
 .diff-btn {
     display: flex;
     flex-direction: column;
@@ -670,6 +879,7 @@ html, body {
     background: rgba(233,69,96,0.12);
     box-shadow: 0 0 18px rgba(233,69,96,0.25);
 }
+
 .diff-btn .diff-icon { font-size: 24px; margin-bottom: 4px; }
 .diff-btn .diff-name {
     font-size: 15px;
@@ -683,7 +893,13 @@ html, body {
     line-height: 1.3;
 }
 
-/* Start Game Button */
+/* ============================================================
+   SECTION 18: Start / Continue Game Buttons
+   ============================================================
+   Primary "Start Game" button in the setup screen with a
+   shine animation on hover. Also the "Continue Game" button
+   (orange) for resuming a saved game.
+   ============================================================ */
 #start-game-btn {
     margin-top: 22px;
     padding: 14px 44px;
@@ -701,6 +917,8 @@ html, body {
     position: relative;
     overflow: hidden;
 }
+
+/* Shine sweep animation across the button */
 #start-game-btn::after {
     content: '';
     position: absolute;
@@ -714,10 +932,10 @@ html, body {
     box-shadow: 0 8px 30px rgba(233,69,96,0.5);
 }
 #start-game-btn:hover::after {
-    left: 100%;
+    left: 100%;                         /* Sweep across on hover */
 }
 
-/* --- Continue Game Button --- */
+/* Continue game button (orange, for resuming saved progress) */
 .continue-game-btn {
     padding: 11px 30px;
     font-size: 13px;
@@ -736,19 +954,27 @@ html, body {
     box-shadow: 0 6px 22px rgba(255,152,0,0.45);
 }
 
-/* --- Game Over Overlay --- */
+/* ============================================================
+   SECTION 19: Game Over Overlay
+   ============================================================
+   Full-screen overlay shown when the player wins or loses.
+   Uses a dark background with blur, centered dialog box,
+   animated fade-in. Shows game-over title (with color based
+   on win/lose), stats, and action buttons.
+   ============================================================ */
 #game-over-overlay {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
     background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);          /* Blur game behind overlay */
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
     animation: fadeIn 0.4s ease;
 }
+
 #game-over-box {
     background: linear-gradient(160deg, rgba(20,30,60,0.95), rgba(10,15,30,0.95));
     border: 1px solid rgba(255,255,255,0.12);
@@ -758,23 +984,29 @@ html, body {
     box-shadow: 0 20px 60px rgba(0,0,0,0.7);
     backdrop-filter: blur(4px);
 }
+
+/* Large title — uses currentColor for win (green) / lose (red) */
 #game-over-title {
     font-size: 52px;
     font-weight: 900;
     margin-bottom: 12px;
-    text-shadow: 0 0 20px currentColor;
+    text-shadow: 0 0 20px currentColor;  /* Glow in the win/lose color */
 }
+
 #game-over-stats {
     font-size: 17px;
     color: var(--text-secondary);
     margin-bottom: 28px;
 }
+
 .game-over-buttons {
     display: flex;
     gap: 14px;
     justify-content: center;
     flex-wrap: wrap;
 }
+
+/* Restart button — accent gradient */
 .restart-btn {
     padding: 14px 34px;
     font-size: 17px;
@@ -791,6 +1023,8 @@ html, body {
     transform: scale(1.05);
     box-shadow: 0 6px 24px rgba(233,69,96,0.5);
 }
+
+/* Menu button — muted grey */
 .menu-btn {
     padding: 14px 34px;
     font-size: 17px;
@@ -810,7 +1044,13 @@ html, body {
     background: rgba(84,110,122,0.85);
 }
 
-/* --- Wave Splash Animations --- */
+/* ============================================================
+   SECTION 20: Wave Splash Animations
+   ============================================================
+   Keyframes used by JS for wave-start splash text effects.
+   ws-fadein: simple opacity fade for the splash container.
+   ws-pop: scale + fade for the wave number appearing.
+   ============================================================ */
 @keyframes ws-fadein {
     from { opacity: 0; }
     to   { opacity: 1; }
@@ -820,7 +1060,12 @@ html, body {
     to   { transform: scale(1);   opacity: 1; }
 }
 
-/* --- Instructions --- */
+/* ============================================================
+   SECTION 21: Instructions
+   ============================================================
+   Small text at the bottom of the screen giving basic controls
+   hint (click to place towers etc.).
+   ============================================================ */
 #instructions {
     width: 100%;
     max-width: 800px;
@@ -833,7 +1078,17 @@ html, body {
     color: var(--text-muted);
 }
 
-/* --- Responsive / Mobile --- */
+/* ============================================================
+   SECTION 22: Responsive Breakpoints
+   ============================================================
+   Two breakpoints for progressively smaller screens.
+   At 850px: compact HUD, smaller tower buttons, repositioned
+     info panel (bottom-center instead of right side).
+   At 480px: even more compact for phones — tiny HUD, minimal
+     tower buttons, smaller map cards.
+   ============================================================ */
+
+/* --- Tablet / small desktop (max-width: 850px) --- */
 @media (max-width: 850px) {
     #game-container {
         padding: 3px;
@@ -844,13 +1099,13 @@ html, body {
         padding: 7px 12px;
         gap: 8px;
     }
-    .hud-value { font-size: 16px; }
+    .hud-value { font-size: 16px; }          /* Smaller stat numbers */
     .wave-start-btn {
         padding: 7px 14px;
         font-size: 12px;
         min-width: 140px;
     }
-    #game-canvas { max-width: 100vw; }
+    #game-canvas { max-width: 100vw; }       /* Canvas fills viewport width */
     .tower-btn {
         min-width: 56px;
         width: 68px;
@@ -860,19 +1115,26 @@ html, body {
     .tower-btn .tower-icon { font-size: 19px; }
     .tower-btn .tower-name { font-size: 8px; }
     .tower-btn .tower-cost { font-size: 10px; }
+
+    /* Info panel moves to bottom-center on smaller screens */
     #tower-info {
         right: auto; top: auto; bottom: 8px; left: 50%;
         transform: translateX(-50%);
         min-width: 260px;
     }
+
+    /* Setup screen adjustments */
     #setup-box { padding: 24px 20px; }
     #setup-box h1 { font-size: 28px; }
     .map-card { width: 120px; padding: 10px 8px; }
     .diff-btn { width: 120px; padding: 10px 8px; }
+
+    /* Game over adjustments */
     #game-over-box { padding: 30px 24px; }
     #game-over-title { font-size: 36px; }
 }
 
+/* --- Phone (max-width: 480px) --- */
 @media (max-width: 480px) {
     #hud { gap: 4px; padding: 5px 8px; }
     .hud-label { font-size: 8px; letter-spacing: 0.3px; }
@@ -891,6 +1153,8 @@ html, body {
     .tower-btn .tower-icon { font-size: 16px; }
     .tower-btn .tower-name { font-size: 7px; }
     .tower-btn .tower-cost { font-size: 9px; }
+
+    /* Even smaller map and difficulty cards on phones */
     .map-card { width: 100px; padding: 8px 6px; }
     .map-card .map-name { font-size: 11px; }
     .diff-btn { width: 100px; padding: 8px 6px; }

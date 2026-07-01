@@ -1,11 +1,32 @@
 // ============================================================
 // Tower — Tower class, targeting, firing logic
+//
+// This file defines the Tower class. Each tower is placed on the
+// grid (col, row) and shoots at enemies within range. Towers have
+// a 3-level upgrade system (0 = base, 1 = upgrade1, 2 = upgrade2).
+// Stats per level are loaded from TOWER_DEFS[typeKey].levels[].
+// When sold, the player recovers 40% of the total invested gold.
 // ============================================================
 
 class Tower {
+    /**
+     * Construct a tower at the given grid position.
+     *
+     * Level system: towers start at level 0 (base) and can be upgraded
+     * twice (level 1 and level 2). Each upgrade increases stats and
+     * costs gold. The totalInvested property tracks all gold spent so
+     * that sell value can be calculated (40% refund).
+     *
+     * All runtime stats (damage, range, fireRate, etc.) are loaded from
+     * TOWER_DEFS[typeKey].levels[this.level] via _applyLevelStats().
+     *
+     * @param {string} typeKey - Key into TOWER_DEFS (e.g. 'archer', 'cannon', 'tesla')
+     * @param {number} col - Grid column (0-based)
+     * @param {number} row - Grid row (0-based)
+     */
     constructor(typeKey, col, row) {
-        const def = TOWER_DEFS[typeKey];
-        if (!def) throw new Error(`Unknown tower type: ${typeKey}`);
+        const towerDefinition = TOWER_DEFS[typeKey];
+        if (!towerDefinition) throw new Error(`Unknown tower type: ${typeKey}`);
 
         this.typeKey = typeKey;
         this.col = col;
@@ -14,55 +35,72 @@ class Tower {
         this.y = row * CELL_SIZE + CELL_SIZE / 2;
         this.level = 0; // 0=base, 1=upgrade1, 2=upgrade2
 
-        this.name = def.name;
-        this.icon = def.icon;
-        this.description = def.description;
+        this.name = towerDefinition.name;
+        this.icon = towerDefinition.icon;
+        this.description = towerDefinition.description;
 
-        // Load stats from level 0
+        // Load level 0 stats as initial values
         this._applyLevelStats();
 
-        // State
+        // Runtime state
         this.cooldown = 0;
         this.target = null;
-        this.angle = 0; // facing direction
+        this.angle = 0;            // facing direction (radians)
         this.totalInvested = this.currentCost;
 
-        // Targeting mode: 'progress' | 'strongest' | 'weakest' | 'fastest'
+        // Targeting mode (cycles through 4 options)
         this.targetMode = 'progress';
 
-        // Nuke specific
-        this.nukeCharge = 0; // 0 to 1, visual charge indicator
+        // Nuke specific: visual charge indicator (0 to 1)
+        this.nukeCharge = 0;
     }
 
+    /**
+     * Load the combat stats from the current level's definition.
+     *
+     * Called during construction and after each upgrade. Reads the
+     * appropriate entry from TOWER_DEFS[typeKey].levels[this.level]
+     * and copies all relevant properties onto the tower instance.
+     */
     _applyLevelStats() {
-        const def = TOWER_DEFS[this.typeKey];
-        const stats = def.levels[this.level];
+        const towerDefinition = TOWER_DEFS[this.typeKey];
+        const levelStats = towerDefinition.levels[this.level];
 
-        this.currentCost = stats.cost;
-        this.damage = stats.damage;
-        this.range = stats.range;
-        this.fireRate = stats.fireRate;
-        this.fireCooldown = 1 / stats.fireRate;
-        this.splashRadius = stats.splashRadius || 0;
-        this.slowAmount = stats.slow || 0;
-        this.slowDuration = stats.slowDuration || 2.5;
-        this.projColor = stats.projColor;
-        this.projSpeed = stats.projSpeed;
-        this.armorPierce = stats.armorPierce || 0;
-        this.chainCount = stats.chainCount || 0;
-        this.radiationDPS = stats.radiationDPS || 0;
-        this.radiationDur = stats.radiationDur || 0;
-        this.stunDuration = stats.stunDuration || 0;
-        this.statsName = stats.name;
-        this.statsColor = stats.color;
+        this.currentCost = levelStats.cost;
+        this.damage = levelStats.damage;
+        this.range = levelStats.range;
+        this.fireRate = levelStats.fireRate;
+        this.fireCooldown = 1 / levelStats.fireRate;
+        this.splashRadius = levelStats.splashRadius || 0;
+        this.slowAmount = levelStats.slow || 0;
+        this.slowDuration = levelStats.slowDuration || 2.5;
+        this.projColor = levelStats.projColor;
+        this.projSpeed = levelStats.projSpeed;
+        this.armorPierce = levelStats.armorPierce || 0;
+        this.chainCount = levelStats.chainCount || 0;
+        this.radiationDPS = levelStats.radiationDPS || 0;
+        this.radiationDur = levelStats.radiationDur || 0;
+        this.stunDuration = levelStats.stunDuration || 0;
+        this.statsName = levelStats.name;
+        this.statsColor = levelStats.color;
     }
 
+    /**
+     * Get the gold cost required to upgrade to the next level.
+     * @returns {number|null} Cost in gold, or null if already at max level (2)
+     */
     getUpgradeCost() {
-        if (this.level >= 2) return null; // Max level
-        const def = TOWER_DEFS[this.typeKey];
-        return def.levels[this.level + 1].cost;
+        if (this.level >= 2) return null;
+        const towerDefinition = TOWER_DEFS[this.typeKey];
+        return towerDefinition.levels[this.level + 1].cost;
     }
 
+    /**
+     * Upgrade this tower to the next level.
+     * Increments level, adds the upgrade cost to totalInvested,
+     * and reloads stats via _applyLevelStats().
+     * @returns {boolean} True if upgrade succeeded, false if already max level
+     */
     upgrade() {
         if (this.level >= 2) return false;
         const cost = this.getUpgradeCost();
@@ -73,58 +111,91 @@ class Tower {
         return true;
     }
 
+    /**
+     * Calculate the sell value of this tower.
+     * Formula: 40% of total gold invested (base cost + upgrade costs),
+     * rounded down to the nearest integer.
+     * @returns {number} Gold refunded when selling
+     */
     getSellValue() {
         return Math.floor(this.totalInvested * 0.4);
     }
 
+    /**
+     * Cycle to the next targeting mode.
+     * The 4 modes cycle in order: progress -> strongest -> weakest -> fastest -> (repeat)
+     * @returns {string} The newly selected target mode key
+     */
     cycleTargetMode() {
         const modes = ['progress', 'strongest', 'weakest', 'fastest'];
-        const idx = modes.indexOf(this.targetMode);
-        this.targetMode = modes[(idx + 1) % modes.length];
+        const currentIndex = modes.indexOf(this.targetMode);
+        this.targetMode = modes[(currentIndex + 1) % modes.length];
         return this.targetMode;
     }
 
+    /**
+     * Get a human-readable label for the current targeting mode.
+     * @returns {string} Display label
+     */
     getTargetModeLabel() {
-        const labels = { progress: 'Furthest Along', strongest: 'Strongest', weakest: 'Lowest HP', fastest: 'Fastest' };
+        const labels = {
+            progress: 'Furthest Along',
+            strongest: 'Strongest',
+            weakest: 'Lowest HP',
+            fastest: 'Fastest'
+        };
         return labels[this.targetMode] || 'Furthest Along';
     }
 
+    /**
+     * Find the best target enemy within range based on the current targeting mode.
+     *
+     * Filtering: only alive enemies within Euclidean distance <= this.range.
+     *
+     * Sort modes:
+     * - 'progress' (default): highest distanceToEnd() first (closest to base/end of path)
+     * - 'strongest': highest maxHp first
+     * - 'weakest': lowest current HP first (cleanup / last-hitting)
+     * - 'fastest': highest current speed first
+     *
+     * @param {Enemy[]} enemies - Array of all active enemies on the map
+     * @returns {Enemy|null} The selected target, or null if none in range
+     */
     findTarget(enemies) {
-        // Find all enemies in range
         const inRange = [];
         for (const enemy of enemies) {
             if (!enemy.alive) continue;
             const dx = enemy.x - this.x;
             const dy = enemy.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist <= this.range) {
-                inRange.push({ enemy, dist });
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance <= this.range) {
+                inRange.push({ enemy, distance });
             }
         }
 
         if (inRange.length === 0) return null;
 
-        // Targeting priority based on selected mode
+        // Sort by the selected targeting mode (ascending order, first element is target)
         switch (this.targetMode) {
             case 'strongest':
                 // Highest max HP first
                 inRange.sort((a, b) => b.enemy.maxHp - a.enemy.maxHp);
                 break;
             case 'weakest':
-                // Lowest current HP first (cleanup)
+                // Lowest current HP first (finish off weakened enemies)
                 inRange.sort((a, b) => a.enemy.hp - b.enemy.hp);
                 break;
             case 'fastest':
-                // Highest speed first
+                // Highest speed first (catch runners)
                 inRange.sort((a, b) => b.enemy.speed - a.enemy.speed);
                 break;
             case 'progress':
             default:
-                // Closest to the base (highest progress) — default
+                // Closest to the base (furthest along the path) — default mode
                 inRange.sort((a, b) => {
-                    const aDist = a.enemy.distanceToEnd();
-                    const bDist = b.enemy.distanceToEnd();
-                    return aDist - bDist;
+                    const distA = a.enemy.distanceToEnd();
+                    const distB = b.enemy.distanceToEnd();
+                    return distA - distB;
                 });
                 break;
         }
@@ -132,28 +203,47 @@ class Tower {
         return inRange[0].enemy;
     }
 
+    /**
+     * Update the tower each frame: cooldown, targeting, and firing.
+     *
+     * Process:
+     * 1. Decrement cooldown by scaled delta time
+     * 2. (Nuke only) Advance visual charge indicator
+     * 3. Find the best target via findTarget()
+     * 4. If a target exists, update facing angle toward it
+     * 5. If cooldown is ready and target alive, fire:
+     *    - Reset cooldown to fireCooldown
+     *    - (Nuke only) Reset charge indicator
+     *    - Play shoot sound via SoundManager
+     *    - Return a firing data object describing the shot
+     *
+     * @param {number} dt - Raw delta time in seconds
+     * @param {Enemy[]} enemies - Array of all active enemies
+     * @param {number} gameSpeed - Game speed multiplier
+     * @returns {object|null} Firing data object if a shot was fired, null otherwise
+     */
     update(dt, enemies, gameSpeed) {
-        const effectiveDt = dt * gameSpeed;
+        const scaledDeltaTime = dt * gameSpeed;
 
-        // Update cooldown
+        // Step 1: Cooldown decay
         if (this.cooldown > 0) {
-            this.cooldown -= effectiveDt;
+            this.cooldown -= scaledDeltaTime;
         }
 
-        // Nuke charge animation
+        // Step 2: Nuke charge animation (visual only, fills bar over cooldown period)
         if (this.typeKey === 'nuke') {
-            this.nukeCharge = Math.min(1, this.nukeCharge + effectiveDt / this.fireCooldown);
+            this.nukeCharge = Math.min(1, this.nukeCharge + scaledDeltaTime / this.fireCooldown);
         }
 
-        // Find target
+        // Step 3: Find target
         this.target = this.findTarget(enemies);
 
+        // Step 4: Face target
         if (this.target) {
-            // Face target
             this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
         }
 
-        // Return firing data if ready to shoot
+        // Step 5: Fire if cooldown is ready and we have a valid target
         if (this.cooldown <= 0 && this.target) {
             this.cooldown = this.fireCooldown;
             if (this.typeKey === 'nuke') {
@@ -181,29 +271,52 @@ class Tower {
         return null;
     }
 
+    /**
+     * Render the tower on the canvas.
+     *
+     * Rendering order:
+     * 1. Ground shadow (offset ellipse)
+     * 2. Dark brown base platform with lighter inner fill
+     * 3. Tower body (rotated to face target) — per-type rendering:
+     *    - archer: Wooden watchtower with plank lines, pointed triangular roof,
+     *      bow arc with bowstring in front
+     *    - cannon: Circular base with rectangular barrel
+     *    - frost: 6-point crystal/star shape with white center gem
+     *    - tesla: Rectangular coil body with yellow coil arcs and blue spark ball at top
+     *    - sniper: Low-profile bunker with camo stripes, bipod legs, long barrel,
+     *      scope with blue lens glint
+     *    - nuke: Silo with dome top, radiation symbol orb (glows based on charge),
+     *      yellow warning stripes
+     *    - plasma: Crystalline energy turret with purple gradient core and glowing orb tip
+     *    - mortar: Wide dome base with upward-angled barrel
+     * 4. Level stars (drawn above tower body after rotation reset)
+     * 5. (Nuke only) Charge bar below tower + countdown / "READY" text
+     *
+     * @param {CanvasRenderingContext2D} ctx
+     */
     render(ctx) {
         const x = this.x;
         const y = this.y;
-        const baseS = CELL_SIZE * 0.38;
-        const levelBonus = this.level * 1.2; // larger body at higher levels
-        const s = baseS + levelBonus;
+        const baseSize = CELL_SIZE * 0.38;
+        const levelBonus = this.level * 1.2; // body grows slightly per level
+        const bodySize = baseSize + levelBonus;
 
-        // Directional ground shadow
+        // Step 1: Ground shadow
         ctx.fillStyle = 'rgba(0,0,0,0.18)';
         ctx.beginPath();
-        ctx.ellipse(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y + 2, s * 1.3, s * 0.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y + 2, bodySize * 1.3, bodySize * 0.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Base platform
+        // Step 2: Base platform
         ctx.fillStyle = '#5D4037';
-        ctx.fillRect(x - s - 2, y - s - 2, (s + 2) * 2, (s + 2) * 2);
+        ctx.fillRect(x - bodySize - 2, y - bodySize - 2, (bodySize + 2) * 2, (bodySize + 2) * 2);
         ctx.fillStyle = '#795548';
-        ctx.fillRect(x - s, y - s, s * 2, s * 2);
+        ctx.fillRect(x - bodySize, y - bodySize, bodySize * 2, bodySize * 2);
         ctx.strokeStyle = '#4E342E';
         ctx.lineWidth = 1;
-        ctx.strokeRect(x - s, y - s, s * 2, s * 2);
+        ctx.strokeRect(x - bodySize, y - bodySize, bodySize * 2, bodySize * 2);
 
-        // Tower body
+        // Step 3: Tower body (rotated toward target)
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(this.angle);
@@ -212,7 +325,7 @@ class Tower {
 
         if (this.typeKey === 'archer') {
             // Wooden watchtower with pointed roof
-            // Tower body — wider wooden base
+            // Wider wooden base
             ctx.fillStyle = '#6D4C41';
             ctx.fillRect(-8, 0, 16, 10);
             ctx.fillStyle = '#8D6E63';
@@ -220,10 +333,10 @@ class Tower {
             // Wood plank lines
             ctx.strokeStyle = '#5D4037';
             ctx.lineWidth = 0.5;
-            for (let ly = -8; ly <= 0; ly += 4) {
-                ctx.beginPath(); ctx.moveTo(-7, ly); ctx.lineTo(7, ly); ctx.stroke();
+            for (let plankY = -8; plankY <= 0; plankY += 4) {
+                ctx.beginPath(); ctx.moveTo(-7, plankY); ctx.lineTo(7, plankY); ctx.stroke();
             }
-            // Pointed roof
+            // Pointed triangular roof
             ctx.fillStyle = '#4E342E';
             ctx.beginPath();
             ctx.moveTo(-10, -10);
@@ -238,19 +351,20 @@ class Tower {
             ctx.lineTo(0, -10);
             ctx.closePath();
             ctx.fill();
-            // Bow in front
+            // Bow arc
             ctx.strokeStyle = '#3E2723';
             ctx.lineWidth = 2.2;
             ctx.beginPath();
             ctx.arc(0, -3, 8, -1.0, 1.0);
             ctx.stroke();
+            // Bowstring
             ctx.strokeStyle = '#5D4037';
             ctx.lineWidth = 0.8;
             ctx.beginPath();
-            ctx.moveTo(0, -10); ctx.lineTo(0, 6); ctx.stroke(); // bowstring
+            ctx.moveTo(0, -10); ctx.lineTo(0, 6); ctx.stroke();
 
         } else if (this.typeKey === 'cannon') {
-            // Cannon: circular base with barrel
+            // Cannon: circular base with rectangular barrel
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(0, 0, 11, 0, Math.PI * 2);
@@ -265,15 +379,15 @@ class Tower {
             ctx.fillRect(-2, -16, 4, 14);
 
         } else if (this.typeKey === 'frost') {
-            // Frost: crystal shape
+            // Frost: 6-point crystal / star shape
             ctx.fillStyle = color;
             ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
-                const r = i % 2 === 0 ? 12 : 7;
-                const px = Math.cos(angle) * r;
-                const py = Math.sin(angle) * r;
-                if (i === 0) ctx.moveTo(px, py);
+            for (let pointIndex = 0; pointIndex < 6; pointIndex++) {
+                const angle = (pointIndex / 6) * Math.PI * 2 - Math.PI / 2;
+                const pointRadius = pointIndex % 2 === 0 ? 12 : 7;
+                const px = Math.cos(angle) * pointRadius;
+                const py = Math.sin(angle) * pointRadius;
+                if (pointIndex === 0) ctx.moveTo(px, py);
                 else ctx.lineTo(px, py);
             }
             ctx.closePath();
@@ -288,18 +402,18 @@ class Tower {
             ctx.fill();
 
         } else if (this.typeKey === 'tesla') {
-            // Tesla: coil with spark ball
+            // Tesla: coil with spark ball at top
             ctx.fillStyle = '#37474F';
             ctx.fillRect(-5, -12, 10, 24);
-            // Coils
+            // Coil arcs
             ctx.strokeStyle = '#FFC107';
             ctx.lineWidth = 2;
-            for (let cy = -10; cy <= 10; cy += 5) {
+            for (let coilY = -10; coilY <= 10; coilY += 5) {
                 ctx.beginPath();
-                ctx.arc(0, cy, 6, -Math.PI, 0);
+                ctx.arc(0, coilY, 6, -Math.PI, 0);
                 ctx.stroke();
             }
-            // Spark at top
+            // Spark ball at top with glow
             ctx.fillStyle = '#FFF176';
             ctx.shadowColor = '#FFD600';
             ctx.shadowBlur = 8;
@@ -315,7 +429,7 @@ class Tower {
             ctx.fillRect(-9, -4, 18, 12);
             ctx.fillStyle = '#455A64';
             ctx.fillRect(-8, -4, 16, 10);
-            // Camo stripe
+            // Camo stripes
             ctx.fillStyle = '#37474F';
             ctx.fillRect(-8, -0, 16, 3);
             ctx.fillStyle = '#607D8B';
@@ -325,7 +439,7 @@ class Tower {
             ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.moveTo(-4, 6); ctx.lineTo(-7, 11); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(4, 6); ctx.lineTo(7, 11); ctx.stroke();
-            // Long barrel extending far forward
+            // Long barrel extending forward
             ctx.fillStyle = '#212121';
             ctx.fillRect(-2.5, -18, 5, 18);
             ctx.fillStyle = '#424242';
@@ -348,14 +462,14 @@ class Tower {
             ctx.shadowBlur = 0;
 
         } else if (this.typeKey === 'nuke') {
-            // Nuke Silo: dome with radiation symbol
+            // Nuke Silo: dome with radiation symbol and charge indicator
             ctx.fillStyle = '#455A64';
             ctx.fillRect(-10, -4, 20, 14);
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(0, -4, 10, Math.PI, 0);
             ctx.fill();
-            // Radiation symbol
+            // Radiation symbol orb — brightness follows charge level
             const chargeGlow = this.nukeCharge;
             ctx.fillStyle = 'rgba(255,200,0,' + (0.5 + chargeGlow * 0.5) + ')';
             ctx.shadowColor = '#FF6D00';
@@ -364,16 +478,17 @@ class Tower {
             ctx.arc(0, -6, 6, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
-            // Warning stripes
+            // Warning stripes at base
             ctx.fillStyle = '#FFC107';
             ctx.fillRect(-8, 4, 16, 2);
             ctx.fillRect(-8, 8, 16, 2);
+
         } else if (this.typeKey === 'plasma') {
             // Plasma Turret: crystalline energy weapon
             // Base
             ctx.fillStyle = '#37474F';
             ctx.fillRect(-7, -2, 14, 10);
-            // Crystal core
+            // Crystal core (pointed polygon)
             ctx.fillStyle = color;
             ctx.shadowColor = '#B388FF';
             ctx.shadowBlur = 8;
@@ -397,6 +512,7 @@ class Tower {
             ctx.arc(0, -12, 4, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
+
         } else if (this.typeKey === 'mortar') {
             // Mortar: wide base with angled barrel
             ctx.fillStyle = '#5D4037';
@@ -405,7 +521,7 @@ class Tower {
             ctx.beginPath();
             ctx.arc(0, -2, 9, Math.PI, 0);
             ctx.fill();
-            // Angled barrel pointing up
+            // Angled barrel pointing upward
             ctx.save();
             ctx.rotate(-0.5);
             ctx.fillStyle = '#4E342E';
@@ -417,45 +533,52 @@ class Tower {
 
         ctx.restore();
 
-        // Level stars
+        // Step 4: Level stars (above tower, not rotated)
         if (this.level > 0) {
             ctx.fillStyle = '#FFD600';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
-            const stars = '★'.repeat(this.level);
-            ctx.fillText(stars, x, y - s - 6);
+            const starCount = '★'.repeat(this.level);
+            ctx.fillText(starCount, x, y - bodySize - 6);
         }
 
-        // Nuke charge bar (below tower)
+        // Step 5: Nuke charge bar and cooldown text
         if (this.typeKey === 'nuke') {
-            const barW = CELL_SIZE - 4;
-            const barH = 3;
-            const bx = x - barW / 2;
-            const by = y + s + 6;
+            const barWidth = CELL_SIZE - 4;
+            const barHeight = 3;
+            const barX = x - barWidth / 2;
+            const barY = y + bodySize + 6;
+            // Background
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(bx, by, barW, barH);
-            const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+            // Gradient fill (green -> yellow -> red)
+            const grad = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
             grad.addColorStop(0, '#4CAF50');
             grad.addColorStop(0.5, '#FFC107');
             grad.addColorStop(1, '#F44336');
             ctx.fillStyle = grad;
-            ctx.fillRect(bx, by, barW * this.nukeCharge, barH);
+            ctx.fillRect(barX, barY, barWidth * this.nukeCharge, barHeight);
 
-            // Countdown text
+            // Countdown text or READY indicator
             if (this.cooldown > 0) {
                 ctx.fillStyle = 'rgba(255,200,50,0.9)';
                 ctx.font = 'bold 9px monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('☢ ' + this.cooldown.toFixed(1) + 's', x, by - 3);
+                ctx.fillText('☢ ' + this.cooldown.toFixed(1) + 's', x, barY - 3);
             } else {
                 ctx.fillStyle = 'rgba(255,50,50,0.85)';
                 ctx.font = 'bold 9px monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('READY', x, by - 3);
+                ctx.fillText('READY', x, barY - 3);
             }
         }
     }
 
+    /**
+     * Render the tower's attack range as a dashed circle with a faint fill.
+     * Used when the tower is selected by the player.
+     * @param {CanvasRenderingContext2D} ctx
+     */
     renderRange(ctx) {
         ctx.strokeStyle = COLOR_RANGE_VALID;
         ctx.lineWidth = 1.5;
@@ -465,20 +588,27 @@ class Tower {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Range fill
+        // Faint range fill
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.fill();
     }
 
+    /**
+     * Lighten a hex color by blending it toward white.
+     * Used for rendering highlights.
+     * @param {string} hex - 6-digit hex color string (e.g. '#FF0000')
+     * @param {number} amount - Lighten factor (0 to 1)
+     * @returns {string} CSS rgb() string
+     */
     _lighten(hex, amount) {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
-        const lr = Math.min(255, r + Math.floor((255 - r) * amount));
-        const lg = Math.min(255, g + Math.floor((255 - g) * amount));
-        const lb = Math.min(255, b + Math.floor((255 - b) * amount));
-        return `rgb(${lr},${lg},${lb})`;
+        const lighterR = Math.min(255, r + Math.floor((255 - r) * amount));
+        const lighterG = Math.min(255, g + Math.floor((255 - g) * amount));
+        const lighterB = Math.min(255, b + Math.floor((255 - b) * amount));
+        return `rgb(${lighterR},${lighterG},${lighterB})`;
     }
 }

@@ -1,6 +1,20 @@
 // ============================================================
 // Tower Defense — Main game initialization and loop
 // ============================================================
+//
+// This file is the core orchestrator. It owns the game state,
+// runs the per-frame update/render loop, and wires up all
+// subsystems (WaveManager, UIManager, InputManager) together.
+//
+// Architecture:
+//   init()           — one-time setup at page load
+//   gameLoop()       — requestAnimationFrame callback (infinite)
+//     update(dt)     — process game logic for this frame
+//     render()       — draw everything to canvas
+//
+// The game state object (game) is the single source of truth
+// for player resources, entity lists, and game status. Every
+// subsystem reads from and writes to it.
 
 // Debug logger (disable by setting DEBUG = false)
 const DEBUG = false;
@@ -15,7 +29,83 @@ function debugLog(msg) {
     'use strict';
     debugLog('Script started');
 
-    // --- Game State ---
+    /**
+     * Game State Object — central data store for the entire game.
+     *
+     * FIELD                    LIFECYCLE / NOTES
+     * -----                    -----------------
+     * gold                     Persisted across waves. Earned from kills and
+     *                          wave-completion bonuses. Spent on towers and
+     *                          upgrades. Reset on game start/restart.
+     *
+     * castleHP / castleMaxHP   Current and maximum castle health. Depleted
+     *                          when enemies reach the base. If castleHP <= 0,
+     *                          the game is lost (gameOver = true). castleMaxHP
+     *                          is constant; castleHP is reset on restart.
+     *
+     * waveNum                  Current wave number (0 before first wave).
+     *                          Incremented by startNextWave(). Determines
+     *                          difficulty scaling and tower unlock gates.
+     *
+     * kills / totalKills       kills: enemies slain this wave (resets each
+     *                          wave? No — only increments). totalKills:
+     *                          cumulative across all waves. Both increment
+     *                          when an enemy dies without reaching the base.
+     *
+     * towers                   Array of Tower instances. Built by placeTower(),
+     *                          filtered on sell. Each tower updates per frame.
+     *
+     * enemies                  Array of Enemy instances. Added via
+     *                          waveManager.onEnemySpawn, filtered every frame
+     *                          to remove dead/base-reached entities.
+     *
+     * projectiles              Array of Projectile instances. Created by tower
+     *                          fire events, filtered when they expire/impact.
+     *
+     * healers                  Rebuilt every frame from alive enemies with
+     *                          healAmount > 0. Separate list avoids iterating
+     *                          all enemies for healing logic.
+     *
+     * gameOver / gameWon       Terminal flags. gameOver = true when castleHP
+     *                          hits 0. gameWon = true after the last predefined
+     *                          wave (endless mode continues after that).
+     *
+     * gameSpeed                Multiplier for dt in update calls (1x/2x/3x).
+     *                          Does not affect rendering, only logic timesteps.
+     *
+     * paused                   When true, update() returns immediately —
+     *                          nothing advances. Render still runs (shows
+     *                          PAUSED overlay).
+     *
+     * repairUnlocked           Becomes true after wave REPAIR_UNLOCK_WAVE or
+     *                          on game start if REPAIR_UNLOCK_WAVE <= 0.
+     *
+     * mapId                    Currently active map identifier (e.g. 'crossroads').
+     *                          Used to look up MAP_DEFS for rendering.
+     *
+     * difficulty / diff        difficulty: string key ('easy'/'normal'/'hard').
+     *                          diff: cached reference to the corresponding
+     *                          DIFFICULTY_DEFS entry (enemy HP multiplier,
+     *                          gold modifiers, wave count, etc.).
+     *
+     * towerKills               Object mapping tower typeKey strings to kill
+     *                          counts. Updated when an enemy dies with a
+     *                          _killedByTowerType set. Used for stats display.
+     *
+     * enemiesReachedBase       Cumulative count of enemies that reached the
+     *                          castle (alive or not). Incremented in the death
+     *                          processing loop and displayed in wave summaries.
+     *
+     * totalKills               Total enemies killed across all waves (not just
+     *                          this session — persists in save data).
+     *
+     * endless                  Set to true after the final victory wave.
+     *                          Disables future win checks and shows an
+     *                          "ENDLESS" indicator on the HUD.
+     *
+     * getTowerAt(col, row)     Helper method to find a tower at a given grid
+     *                          position. Returns the Tower instance or null.
+     */
     const game = {
         gold: STARTING_GOLD || 280,
         castleHP: CASTLE_STARTING_HP || 2000,
@@ -52,7 +142,8 @@ function debugLog(msg) {
 
     // --- Game Start Callback (from setup screen) ---
     function onGameStart(mapId, difficulty) {
-        // Initialize audio context on user gesture
+        // Initialize audio context on user gesture (browsers require
+        // user interaction before AudioContext can be created)
         if (typeof SoundManager !== 'undefined') SoundManager.init();
 
         // Set globals before initializing game state
@@ -64,7 +155,7 @@ function debugLog(msg) {
         game.diff = (typeof DIFFICULTY_DEFS !== 'undefined' && DIFFICULTY_DEFS[difficulty])
             ? DIFFICULTY_DEFS[difficulty] : DIFFICULTY_DEFS.normal;
 
-        // Apply map
+        // Apply map — builds GRID_DATA, waypoints, decorations via setActiveMap
         if (typeof setActiveMap === 'function') {
             setActiveMap(mapId);
         }
@@ -107,6 +198,30 @@ function debugLog(msg) {
     }
 
     // --- Initialize ---
+    /**
+     * One-time initialization called on DOMContentLoaded.
+     *
+     * LOAD ORDER (critical):
+     *   1. Canvas lookup and sizing — must succeed before any drawing.
+     *   2. setActiveMap('crossroads') — GRID_DATA must be populated before
+     *      anything reads it (e.g. tower defs, waypoint calculations).
+     *      The default map is loaded here so that clicking "Start" on the
+     *      setup screen immediately has a valid map already configured.
+     *   3. WaveManager — depends on wave definitions being available.
+     *   4. UIManager — depends on GRID_DATA for tower placement preview,
+     *      and on canvas dimensions for layout calculations.
+     *   5. InputManager — depends on canvas for event listeners.
+     *   6. Callback wiring (onClick, onRightClick, onEnemySpawn) — these
+     *      reference game state and other managers, so they must be wired
+     *      after all managers are instantiated.
+     *   7. UI button event listeners — DOM elements must exist in the page.
+     *   8. Keyboard shortcuts — global listeners, no dependency.
+     *   9. requestAnimationFrame(gameLoop) — starts the infinite update/render
+     *      loop. This runs even while the setup screen is shown (the loop
+     *      renders behind the setup overlay).
+     *  10. uiManager.showGameSetup() — shows the map/difficulty selection
+     *      screen. Called last so everything is ready.
+     */
     function init() {
         debugLog('init() called');
         try {
@@ -123,6 +238,8 @@ function debugLog(msg) {
             debugLog('Canvas setup: ' + GAME_WIDTH + 'x' + GAME_HEIGHT);
 
             // Load default map before anything touches GRID_DATA
+            // This must happen early because UIManager and tower placement
+            // logic need to read GRID_DATA immediately.
             if (typeof setActiveMap === 'function' && typeof MAP_DEFS !== 'undefined' && MAP_DEFS.crossroads) {
                 setActiveMap('crossroads');
             }
@@ -290,6 +407,33 @@ function debugLog(msg) {
     }
 
     // --- Save / Resume ---
+    /**
+     * Save current game state to localStorage.
+     *
+     * SAVED FIELDS:
+     *   mapId, difficulty    — needed to restore the correct map and difficulty modifiers
+     *   waveNum              — which wave to resume from
+     *   gold                 — player's treasury
+     *   castleHP             — base health (castleMaxHP is constant, not saved)
+     *   kills, totalKills    — kill statistics for display
+     *   towerKills           — per-tower-type kill tracking for stats
+     *   enemiesReachedBase   — cumulative counter for wave summaries
+     *   endless              — whether endless mode was unlocked
+     *   towers               — array of {typeKey, col, row, level, totalInvested}
+     *                         Serialized as minimal data (not full Tower instances)
+     *                         so they can be reconstructed with new Tower() on load.
+     *
+     * WHAT IS NOT SAVED (and why):
+     *   enemies/projectiles/healers  — these are transient per-wave state.
+     *                                   Saving mid-wave would introduce complexity
+     *                                   with little benefit since waves are short.
+     *   active effects/floating texts — purely visual, not worth serializing.
+     *   waveManager internals         — too coupled to internal implementation.
+     *                                   Simplest to just resume between waves.
+     *
+     * Save is written to localStorage key 'td_save' after each wave completion.
+     * It is cleared on game over (defeat) so the player cannot resume a lost game.
+     */
     function saveGame() {
         try {
             const saveData = {
@@ -306,7 +450,7 @@ function debugLog(msg) {
                 towers: game.towers.map(t => ({ typeKey: t.typeKey, col: t.col, row: t.row, level: t.level, totalInvested: t.totalInvested })),
             };
             localStorage.setItem('td_save', JSON.stringify(saveData));
-        } catch(e) { /* storage full or unavailable */ }
+        } catch(e) { /* storage full or unavailable — silently fail */ }
     }
 
     function loadGame() {
@@ -355,7 +499,9 @@ function debugLog(msg) {
         game.repairUnlocked = (saveData.waveNum >= REPAIR_UNLOCK_WAVE);
         gameTime = 0;
 
-        // Restore towers
+        // Restore towers from serialized data
+        // Towers must be reconstructed as Tower instances so their methods
+        // (update, render, getUpgradeCost, etc.) work correctly.
         game.towers = [];
         for (const tData of (saveData.towers || [])) {
             const tower = new Tower(tData.typeKey, tData.col, tData.row);
@@ -365,6 +511,7 @@ function debugLog(msg) {
             game.towers.push(tower);
         }
 
+        // Clear transient state — enemies/projectiles/healers are not saved
         game.enemies = [];
         game.healers = [];
         game.projectiles = [];
@@ -384,9 +531,9 @@ function debugLog(msg) {
         debugLog('Game resumed: map=' + saveData.mapId + ' wave=' + saveData.waveNum);
     };
 
-    // Clear save on game over (defeat)
+    // Clear save on game over (defeat) — prevents resuming a lost game
     function handleGameOver() {
-        clearSave(); // remove save so player can't resume a lost game
+        clearSave();
         game.gameOver = true;
         if (typeof SoundManager !== 'undefined') SoundManager.gameOver();
         uiManager.showGameOverScreen(false, game.waveNum, game.kills, game.towerKills, game.totalKills, game.enemiesReachedBase);
@@ -438,7 +585,7 @@ function debugLog(msg) {
 
     function startNextWave() {
         game.waveNum++;
-        // Unlocks are queued during the round by updateHUD → updateTowerUnlocks
+        // Unlocks are queued during the round by updateHUD -> updateTowerUnlocks
         // and applied only after the round ends (in the wave completion block).
         waveManager.startWave(game.waveNum);
         if (typeof SoundManager !== 'undefined') SoundManager.waveStart();
@@ -497,20 +644,83 @@ function debugLog(msg) {
     }
 
     // --- Update ---
+    /**
+     * Per-frame game logic update. Called once per animation frame with
+     * the real elapsed time (dt). The dt is clamped to avoid physics
+     * instability from long frame gaps (e.g. tab was backgrounded).
+     *
+     * PIPELINE (executed in order every frame):
+     *
+     *   1. EARLY RETURN — skip everything if game is over or paused.
+     *
+     *   2. WAVE UPDATE — if waveManager.active, tick waveManager to
+     *      spawn enemies and advance wave state.
+     *
+     *   3. ENEMY UPDATE — iterate all enemies:
+     *        - Call enemy.update() for movement, waypoint progression.
+     *        - Rebuild game.healers array: collect alive enemies with
+     *          healAmount > 0 for the dedicated heal loop below.
+     *
+     *   4. HEALER TICK — for each healer whose healTimer >= healInterval:
+     *        - Find the nearest damaged enemy within healRadius.
+     *        - Apply healing, spawn floating green "+N" text.
+     *        - Break (one heal per tick per healer).
+     *
+     *   5. DEATH PROCESSING — single pass over all enemies:
+     *        a) BASE-REACH DAMAGE: if the enemy has reachedBase and
+     *           was not yet counted (e._countedAsLost), apply damage
+     *           to castleHP, increment enemiesReachedBase, spawn
+     *           floating red "-DMG HP" text. If castleHP <= 0, trigger
+     *           game over.
+     *
+     *        b) DEATH HANDLING: if the enemy is !alive && !_cleanedUp,
+     *           mark as cleaned, award gold (+kills/+totalKills), call
+     *           waveManager.onEnemyKilled(), spawn death effects, track
+     *           per-tower-type kill, and — critically — spawn splitter
+     *           minions if splitCount > 0.
+     *
+     *        c) SURVIVOR FILTER: if the enemy is alive OR was not yet
+     *           cleaned up, keep it in the survivors list. Otherwise
+     *           discard (dead + cleaned = removed from game.enemies).
+     *
+     *   6. TOWER UPDATE — for each tower, call tower.update(). If it
+     *      returns fireData, create a new Projectile and push it.
+     *
+     *   7. PROJECTILE UPDATE — for each projectile, call update().
+     *      If it returns impact effects, process them. Filter out dead
+     *      projectiles.
+     *
+     *   8. EFFECTS UPDATE — tick activeEffects (floating texts, particle
+     *      animations, screen shakes).
+     *
+     *   9. WAVE COMPLETION — if the wave just finished:
+     *        - Award wave bonus gold.
+     *        - Unlock castle repair if threshold reached.
+     *        - Heal castle on Easy mode.
+     *        - Check win condition (waveNum === wavesToWin).
+     *        - Show wave summary floating text.
+     *        - Auto-save.
+     *        - Apply tower unlocks + celebrations.
+     *
+     *  10. UI UPDATE — refresh HUD with latest state.
+     */
     function update(dt) {
         if (game.gameOver || game.paused) return;
 
-        const cappedDt = Math.min(dt, 0.1);
-        gameTime += cappedDt;
+        // Clamp delta time to prevent physics tunneling when the tab
+        // is backgrounded (browsers pause requestAnimationFrame, so the
+        // first frame after resume can have a very large dt).
+        const clampedDeltaTime = Math.min(dt, 0.1);
+        gameTime += clampedDeltaTime;
 
         if (waveManager.active) {
-            waveManager.update(cappedDt, game.gameSpeed);
+            waveManager.update(clampedDeltaTime, game.gameSpeed);
         }
 
         // Update enemies & rebuild healers list
         game.healers = [];
         for (const enemy of game.enemies) {
-            enemy.update(cappedDt, game.gameSpeed);
+            enemy.update(clampedDeltaTime, game.gameSpeed);
             if (enemy.alive && enemy.healAmount > 0) {
                 game.healers.push(enemy);
             }
@@ -537,56 +747,97 @@ function debugLog(msg) {
             }
         }
 
-        // Single-pass: process base-reach, deaths, and filter survivors
+        /**
+         * DEATH PROCESSING LOOP — Single pass over all enemies each frame.
+         *
+         * This loop handles three cases for each enemy:
+         *
+         * CASE A — Reached base (reachedBase=true, alive=false):
+         *   The enemy has already arrived at the castle flag in enemy.update().
+         *   On the first frame we detect this:
+         *     - Set _countedAsLost = true (prevents duplicate processing)
+         *     - Set _cleanedUp = true (prevents the death block below from firing)
+         *     - Increment enemiesReachedBase counter
+         *     - Increment waveManager._enemiesRemoved (for wave completion tracking)
+         *     - Calculate damage = Math.floor(enemy.hp) (min 1)
+         *     - Subtract damage from castleHP
+         *     - Show floating red "-N HP" text at the base
+         *     - If castleHP <= 0: trigger handleGameOver()
+         *
+         * CASE B — Killed in combat (alive=false, reachedBase=false):
+         *   The enemy was slain by a tower. On first detection:
+         *     - Set _cleanedUp = true (prevents reprocessing)
+         *     - Increment waveManager._enemiesRemoved
+         *     - Award gold to player
+         *     - Increment kills and totalKills
+         *     - Call waveManager.onEnemyKilled()
+         *     - Spawn death particles and sound
+         *     - Track killedByTowerType in game.towerKills
+         *     - SPLITTER SPAWN: if enemy.splitCount > 0, create that many
+         *       minion enemies of splitChildType, positioned near the dead
+         *       enemy's location, inheriting its waypointIndex. These minions
+         *       are pushed into the survivors array (added to game.enemies
+         *       after the loop ends).
+         *
+         * CASE C — Still alive or not yet cleaned:
+         *   Keep the enemy in the survivors list for next frame.
+         *
+         * The survivors array replaces game.enemies at the end of the loop.
+         */
         const survivors = [];
         for (let i = 0; i < game.enemies.length; i++) {
-            const e = game.enemies[i];
+            const enemy = game.enemies[i];
 
-            // Base-reach damage
-            if (e.reachedBase && e.alive === false && !e._countedAsLost) {
-                e._countedAsLost = true;
-                e._cleanedUp = true; // prevent double-count in death block below
+            // === CASE A: Base-reach damage ===
+            // The enemy.update() method sets reachedBase=true and alive=false
+            // when the enemy arrives at the final waypoint. This block runs
+            // once (guarded by _countedAsLost).
+            if (enemy.reachedBase && enemy.alive === false && !enemy._countedAsLost) {
+                enemy._countedAsLost = true;
+                enemy._cleanedUp = true; // prevent double-count in death block below
                 game.enemiesReachedBase++;
                 if (waveManager._enemiesRemoved !== undefined) waveManager._enemiesRemoved++;
-                const rawDmg = Math.floor(e.hp);
-                const dmg = isNaN(rawDmg) ? 1 : Math.max(1, rawDmg);
-                game.castleHP -= dmg;
+                const rawDamage = Math.floor(enemy.hp);
+                const damage = isNaN(rawDamage) ? 1 : Math.max(1, rawDamage);
+                game.castleHP -= damage;
                 if (isNaN(game.castleHP)) game.castleHP = CASTLE_STARTING_HP;
                 if (typeof SoundManager !== 'undefined') SoundManager.enemyReachBase();
                 const baseCell = PATH_CELLS[PATH_CELLS.length - 1];
-                const bx = baseCell.c * CELL_SIZE + CELL_SIZE / 2;
-                const by = baseCell.r * CELL_SIZE + CELL_SIZE / 2;
-                activeEffects.floatingTexts.push(new FloatingText(bx, by - 20, '-' + dmg + ' HP', '#F44336'));
+                const baseCenterX = baseCell.c * CELL_SIZE + CELL_SIZE / 2;
+                const baseCenterY = baseCell.r * CELL_SIZE + CELL_SIZE / 2;
+                activeEffects.floatingTexts.push(new FloatingText(baseCenterX, baseCenterY - 20, '-' + damage + ' HP', '#F44336'));
                 if (game.castleHP <= 0) {
                     game.castleHP = 0;
                     handleGameOver();
                 }
             }
 
-            // Death processing
-            if (!e.alive && !e._cleanedUp) {
-                e._cleanedUp = true;
+            // === CASE B: Death from combat ===
+            if (!enemy.alive && !enemy._cleanedUp) {
+                enemy._cleanedUp = true;
                 if (waveManager._enemiesRemoved !== undefined) waveManager._enemiesRemoved++;
-                if (!e.reachedBase) {
-                    game.gold += e.gold;
+                if (!enemy.reachedBase) {
+                    // Award kill rewards
+                    game.gold += enemy.gold;
                     game.kills++;
                     game.totalKills++;
                     waveManager.onEnemyKilled();
-                    activeEffects.spawnEnemyDeath(e);
-                    if (typeof SoundManager !== 'undefined') SoundManager.enemyDie(e.typeKey);
+                    activeEffects.spawnEnemyDeath(enemy);
+                    if (typeof SoundManager !== 'undefined') SoundManager.enemyDie(enemy.typeKey);
 
                     // Track per-tower kill (last damaging tower stored on enemy)
-                    if (e._killedByTowerType) {
-                        game.towerKills[e._killedByTowerType] = (game.towerKills[e._killedByTowerType] || 0) + 1;
+                    if (enemy._killedByTowerType) {
+                        game.towerKills[enemy._killedByTowerType] = (game.towerKills[enemy._killedByTowerType] || 0) + 1;
                     }
 
-                    // Splitter spawn on death
-                    if (e.splitCount > 0 && e.splitChildType) {
-                        for (let j = 0; j < e.splitCount; j++) {
-                            const minion = new Enemy(e.splitChildType, game.waveNum);
-                            minion.x = e.x + (Math.random() - 0.5) * 16;
-                            minion.y = e.y + (Math.random() - 0.5) * 16;
-                            minion.waypointIndex = Math.min(e.waypointIndex, WAYPOINTS.length - 1);
+                    // Splitter spawn on death — some enemies (e.g. "Nest" type)
+                    // explode into multiple smaller enemies when killed.
+                    if (enemy.splitCount > 0 && enemy.splitChildType) {
+                        for (let j = 0; j < enemy.splitCount; j++) {
+                            const minion = new Enemy(enemy.splitChildType, game.waveNum);
+                            minion.x = enemy.x + (Math.random() - 0.5) * 16;
+                            minion.y = enemy.y + (Math.random() - 0.5) * 16;
+                            minion.waypointIndex = Math.min(enemy.waypointIndex, WAYPOINTS.length - 1);
                             survivors.push(minion);
                             waveManager.totalEnemiesInWave++;
                         }
@@ -594,57 +845,61 @@ function debugLog(msg) {
                 }
             }
 
-            if (e.alive || !e._cleanedUp) {
-                survivors.push(e);
+            // === CASE C: Keep alive or not yet cleaned ===
+            if (enemy.alive || !enemy._cleanedUp) {
+                survivors.push(enemy);
             }
         }
         game.enemies = survivors;
 
-        // Towers
+        // Towers — each tower checks range, acquires targets, and may fire
         for (const tower of game.towers) {
-            const fireData = tower.update(cappedDt, game.enemies, game.gameSpeed);
+            const fireData = tower.update(clampedDeltaTime, game.enemies, game.gameSpeed);
             if (fireData) {
-                const proj = new Projectile(fireData, game.enemies);
-                game.projectiles.push(proj);
+                const projectile = new Projectile(fireData, game.enemies);
+                game.projectiles.push(projectile);
             }
         }
 
-        // Projectiles
-        for (const proj of game.projectiles) {
-            const effects = proj.update(cappedDt, game.enemies, game.gameSpeed);
+        // Projectiles — move toward target, apply damage/effects on impact
+        for (const projectile of game.projectiles) {
+            const effects = projectile.update(clampedDeltaTime, game.enemies, game.gameSpeed);
             if (effects) {
                 activeEffects.processImpactEffects(effects);
             }
         }
-        game.projectiles = game.projectiles.filter(p => p.alive);
+        game.projectiles = game.projectiles.filter(projectile => projectile.alive);
 
-        activeEffects.update(cappedDt);
+        // Tick visual effects (floating texts, particles, screen shake)
+        activeEffects.update(clampedDeltaTime);
 
-        // Wave completion
+        // Wave completion — detect when the waveManager's spawn queue is
+        // exhausted AND all enemies have been removed (killed or reached base).
         if (waveManager.active && waveManager.isWaveComplete()) {
             const bonus = waveManager.getWaveBonusGold();
             game.gold += bonus;
             waveManager.active = false;
             if (typeof SoundManager !== 'undefined') SoundManager.waveComplete();
-            // Unlock castle repair after certain wave
+            // Unlock castle repair after certain wave threshold
             if (game.waveNum >= REPAIR_UNLOCK_WAVE) {
                 game.repairUnlocked = true;
             }
 
-            // Castle healing on Easy mode
+            // Castle healing on Easy mode — restorative wave bonus
             if (game.diff.healCastlePerWave > 0) {
-                const healAmt = Math.min(game.diff.healCastlePerWave, game.castleMaxHP - game.castleHP);
-                game.castleHP += healAmt;
-                if (healAmt > 0) {
+                const healAmount = Math.min(game.diff.healCastlePerWave, game.castleMaxHP - game.castleHP);
+                game.castleHP += healAmount;
+                if (healAmount > 0) {
                     const midX = GAME_WIDTH / 2;
                     const midY = GAME_HEIGHT / 2 - 60;
                     activeEffects.floatingTexts.push(new FloatingText(
-                        midX, midY, '+ ' + healAmt + ' Castle HP', '#4CAF50'
+                        midX, midY, '+ ' + healAmount + ' Castle HP', '#4CAF50'
                     ));
                 }
             }
 
-            // Win condition — use difficulty-defined wavesToWin
+            // Win condition — use difficulty-defined wavesToWin for victory.
+            // After victory, the game enters endless mode (continues indefinitely).
             const WAVES_TO_WIN = game.diff.wavesToWin || 20;
             if (game.waveNum === WAVES_TO_WIN) {
                 game.gameWon = true;
@@ -660,7 +915,7 @@ function debugLog(msg) {
                 ));
                 game.endless = true;
 
-                // Unlock next map on victory (not just reaching wave 10)
+                // Unlock next map on victory (persisted to localStorage)
                 if (game.mapId) {
                     try {
                         const beaten = JSON.parse(localStorage.getItem('td_beaten_maps') || '{}');
@@ -676,7 +931,7 @@ function debugLog(msg) {
             const midY = GAME_HEIGHT / 2 - 40;
             const reached = game.enemiesReachedBase || 0;
 
-            // Post-wave summary
+            // Post-wave summary floating text
             let summaryText = 'Wave ' + game.waveNum + ' done';
             summaryText += ' • ' + waveManager.enemiesKilledThisWave + ' kills';
             if (reached > 0) {
@@ -691,7 +946,6 @@ function debugLog(msg) {
             ));
 
             // Log enemies that reached base (cleared after summary)
-            // Resetting reached-base count per wave tracking
             game._lastWaveReached = reached;
 
             // Auto-save after each wave
@@ -707,25 +961,84 @@ function debugLog(msg) {
     }
 
     // --- Render ---
+    /**
+     * Per-frame rendering. Draw order is critical for correct
+     * layering (painter's algorithm — later draws on top):
+     *
+     *   1. CLEAR CANVAS — erase previous frame.
+     *
+     *   2. MAP TERRAIN (renderMap) — draws the base terrain grid,
+     *      decorations (trees, rocks, houses), and the smooth path
+     *      ribbon. This is the bottom-most layer.
+     *
+     *   3. PATH ARROWS (renderPathArrows) — optional directional
+     *      indicators overlaid on the path (helpful for new players).
+     *
+     *   4. TOWER PLACEMENT PREVIEW — when hovering a valid tower
+     *      placement cell, draws the tower preview (transparent + range
+     *      circle). Drawn above the map so the player can see where
+     *      the tower will go.
+     *
+     *   5. SELECTED TOWER RANGE — range circle and highlight for the
+     *      currently selected placed tower. Drawn above the preview
+     *      layer for visibility.
+     *
+     *   6. TOWERS — all placed towers. Drawn above terrain so they
+     *      visually sit on top of the grid. Includes turret rotation
+     *      and any visual effects.
+     *
+     *   7. ENEMIES — all alive enemies. Drawn above towers so their
+     *      movement is visible over tower bases.
+     *
+     *   8. PROJECTILES — bullets, arrows, missiles in flight. Drawn
+     *      on top of everything game-world so they're always visible.
+     *
+     *   9. ACTIVE EFFECTS — floating texts (damage numbers, gold gains,
+     *      wave summaries), particles (explosions, splashes), screen
+     *      shake overlay. Top of the game world.
+     *
+     *  10. WAVE INCOMING TEXT — "Wave N incoming..." announcement that
+     *      fades in at the start of each wave. Drawn above game world.
+     *
+     *  11. PAUSE OVERLAY — semi-transparent dark overlay + centered
+     *      "PAUSED" text when game.paused is true.
+     *
+     *  12. GAME OVER OVERLAY — dark overlay + "GAME OVER" text (only
+     *      when game is lost, not won).
+     *
+     *  13. ENDLESS MODE INDICATOR — subtle "ENDLESS" label in top-right
+     *      corner.
+     *
+     *  14. VIGNETTE — radial gradient overlay around edges for a subtle
+     *      3D depth effect. Applied as the very last draw to create a
+     *      "letterbox" vignette.
+     *
+     * This order ensures that UI overlays (pause, game over) cover
+     * everything, while game-world elements are layered logically
+     * (terrain -> previews -> entities -> effects).
+     */
     function render() {
         ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-        // Pass castle HP to map renderer for visual damage
+        // Pass castle HP to map renderer for visual damage state on the castle sprite
         window._castleHPPercent = game.castleHP / game.castleMaxHP;
         renderMap(ctx);
         renderPathArrows(ctx);
 
+        // Tower placement preview (hover ghost + range circle)
         if (inputManager.hoveredCell && uiManager.selectedTowerType && !game.gameOver) {
             const cell = inputManager.hoveredCell;
             const canPlace = canPlaceTower(cell.col, cell.row, game.towers);
             uiManager.renderHoverPreview(ctx, cell, canPlace, uiManager.selectedTowerType);
         }
 
+        // Selected placed tower highlight + range
         if (uiManager.selectedPlacedTower) {
             uiManager.selectedPlacedTower.renderRange(ctx);
             uiManager.renderPlacedTowerHighlight(ctx, uiManager.selectedPlacedTower);
         }
 
+        // Game entities (towers, enemies, projectiles)
         for (const tower of game.towers) {
             tower.render(ctx);
         }
@@ -734,12 +1047,14 @@ function debugLog(msg) {
             if (enemy.alive) enemy.render(ctx);
         }
 
-        for (const proj of game.projectiles) {
-            proj.render(ctx);
+        for (const projectile of game.projectiles) {
+            projectile.render(ctx);
         }
 
+        // Visual effects on top of game world
         activeEffects.render(ctx);
 
+        // Wave incoming announcement
         if (waveManager.active && waveManager.waveStartTimer > 0) {
             const waveDelay = game.diff.waveDelay || WAVE_DELAY;
             const alpha = Math.min(1, waveManager.waveStartTimer / waveDelay);
@@ -753,6 +1068,7 @@ function debugLog(msg) {
             );
         }
 
+        // Pause overlay
         if (game.paused) {
             ctx.fillStyle = 'rgba(0,0,0,0.55)';
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -765,6 +1081,7 @@ function debugLog(msg) {
             ctx.fillText('Press P to resume', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 35);
         }
 
+        // Game over overlay (defeat only — victory shows celebration text)
         if (game.gameOver && !game.gameWon) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -782,7 +1099,7 @@ function debugLog(msg) {
             ctx.fillText('ENDLESS', GAME_WIDTH - 10, 18);
         }
 
-        // Subtle vignette overlay for 3D depth
+        // Subtle vignette overlay for 3D depth perception
         const vignetteGrad = ctx.createRadialGradient(
             GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.35,
             GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.72
